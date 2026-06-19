@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Next Safety — Vistoria de Frota</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #1a1d1f;
+      --white: #f5f4f0;
+      --gray:  #252a2e;
+      --gray2: #2e3338;
+      --gray3: #6b7280;
+      --red:   #e03e3e;
+      --green: #8dc63f;
+      --green-dark: #6fa832;
+      --ns-gray: #4a4f54;
+      --radius: 14px;
+      --font-head: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+    html, body { height: 100%; background: var(--black); color: var(--white); font-family: var(--font-body); font-size: 16px; -webkit-font-smoothing: antialiased; }
+    #app { min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── TELAS ── */
+    .tela { display: none; flex-direction: column; min-height: 100vh; padding: 0 0 40px; }
+    .tela.ativa { display: flex; animation: fadeUp .35s ease both; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    /* ── LOGIN ── */
+    #tela-login { min-height: 100vh; display: none; align-items: center; justify-content: center; padding: 32px 24px; background: var(--black); }
+    #tela-login.ativa { display: flex; }
+    .login-card { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 20px; padding-bottom: 32px; }    .login-logo-img { height: 110px; object-fit: contain; filter: brightness(0) invert(1); }
+    .login-subtitulo { font-size: .9rem; color: var(--gray3); letter-spacing: .06em; text-transform: uppercase; font-weight: 500; margin-top: -8px; }
+
+    /* ── HEADER ── */
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid var(--gray2); position: relative; }
+    .header-logo { height: 26px; object-fit: contain; filter: brightness(0) invert(1); }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .badge-tipo { font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; background: var(--gray2); color: var(--white); }
+    .badge-tipo.retirada { background: #1a3a5c; color: #60b4ff; }
+    .badge-tipo.devolucao { background: #1a3a2a; color: var(--green); }
+
+    /* ── MENU ⋯ ── */
+    .menu-btn { background: none; border: none; cursor: pointer; color: var(--gray3); font-size: 1.4rem; padding: 4px 6px; border-radius: 8px; transition: background .15s, color .15s; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; letter-spacing: 2px; }
+    .menu-btn:hover { background: var(--gray2); color: var(--white); }
+    .menu-dropdown { position: absolute; top: 56px; right: 16px; background: #1e2326; border: 1px solid var(--gray2); border-radius: 12px; padding: 6px; min-width: 210px; z-index: 99; box-shadow: 0 8px 24px rgba(0,0,0,.5); display: none; animation: fadeDown .2s ease both; }
+    .menu-dropdown.aberto { display: block; }
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .menu-item { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 8px; cursor: pointer; font-size: .88rem; color: var(--white); transition: background .15s; border: none; background: none; width: 100%; text-align: left; font-family: var(--font-body); }
+    .menu-item:hover { background: var(--gray2); }
+    .menu-item.perigo { color: #ff8080; }
+    .menu-item.perigo:hover { background: #2a0f0f; }
+    .menu-item.bloqueado { color: var(--gray3); cursor: default; }
+    .menu-item.bloqueado:hover { background: none; }
+    .menu-separador { border: none; border-top: 1px solid var(--gray2); margin: 4px 0; }
+    .menu-admin-badge { font-size: .65rem; background: #1e2a14; border: 1px solid var(--green); color: var(--green); border-radius: 10px; padding: 2px 7px; margin-left: auto; }
+
+    /* ── CONTEÚDO ── */
+    .conteudo { flex: 1; padding: 28px 24px 0; display: flex; flex-direction: column; gap: 20px; }
+    h2 { font-family: var(--font-head); font-weight: 800; font-size: 1.7rem; line-height: 1.2; color: var(--white); }
+    h2 .destaque { color: var(--green); }
+    .subtitulo { font-size: .9rem; color: var(--gray3); margin-top: 4px; }
+
+    /* ── INPUTS ── */
+    .campo { display: flex; flex-direction: column; gap: 7px; }
+    .campo label { font-size: .8rem; font-weight: 500; color: var(--gray3); letter-spacing: .04em; text-transform: uppercase; }
+    .campo input, .campo select { background: var(--gray); border: 1.5px solid var(--gray2); border-radius: var(--radius); color: var(--white); font-family: var(--font-body); font-size: 1rem; padding: 14px 16px; outline: none; transition: border-color .2s; width: 100%; appearance: none; -webkit-appearance: none; }
+    .campo input:focus, .campo select:focus { border-color: var(--green); }
+    .campo select option { background: var(--gray); }
+
+    /* ── BOTÕES ── */
+    .btn { border: none; border-radius: var(--radius); cursor: pointer; font-family: var(--font-head); font-weight: 700; font-size: 1rem; letter-spacing: .03em; padding: 16px 24px; width: 100%; transition: transform .15s, opacity .15s; text-transform: uppercase; }
+    .btn:active { transform: scale(.97); opacity: .9; }
+    .btn-primary { background: var(--green); color: var(--black); }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-ghost   { background: var(--gray2); color: var(--white); }
+    .btn-danger  { background: var(--red); color: #fff; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── TIPO ── */
+    .tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .tipo-card { border: 2px solid var(--gray2); border-radius: var(--radius); padding: 20px 14px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .tipo-card:hover { border-color: var(--gray3); }
+    .tipo-card.selecionado.retirada { border-color: #60b4ff; background: #0d1f2f; }
+    .tipo-card.selecionado.devolucao { border-color: var(--green); background: #0d1f15; }
+    .tipo-card .icone { font-size: 2rem; }
+    .tipo-card .nome { font-family: var(--font-head); font-weight: 700; font-size: .95rem; }
+    .tipo-card .desc { font-size: .75rem; color: var(--gray3); }
+
+    /* ── FOTOS ── */
+    .fotos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .foto-card { border: 2px dashed var(--gray2); border-radius: var(--radius); aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; position: relative; overflow: hidden; transition: border-color .2s; font-size: inherit; color: inherit; text-align: center; }
+    .foto-card:hover { border-color: var(--gray3); }
+    .foto-card.capturada { border-color: var(--green); border-style: solid; }
+    .foto-card input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; z-index: 2; }
+    .foto-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; z-index: 0; }
+    .foto-card .overlay { position: absolute; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; border-radius: 12px; z-index: 1; }
+    .foto-card .check { font-size: 1.5rem; }
+    .foto-card .label { font-size: .75rem; font-weight: 600; color: var(--gray3); letter-spacing: .04em; text-transform: uppercase; text-align: center; padding: 0 8px; z-index: 1; }
+    .foto-icone { font-size: 1.6rem; z-index: 1; }
+    .foto-card.painel { grid-column: span 2; aspect-ratio: 2/1; }
+
+    /* ── PROGRESSO ── */
+    .progresso-fotos { display: flex; gap: 6px; justify-content: center; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gray2); transition: background .2s; }
+    .dot.ok { background: var(--green); }
+
+    /* ── REVISÃO ── */
+    .revisao-card { background: var(--gray); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .revisao-linha { display: flex; justify-content: space-between; align-items: center; font-size: .9rem; }
+    .revisao-linha .key { color: var(--gray3); }
+    .revisao-linha .val { font-weight: 500; color: var(--white); }
+    .revisao-fotos-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 4px; }
+    .revisao-foto { aspect-ratio: 1; border-radius: 8px; object-fit: cover; width: 100%; }
+    .revisao-foto-vazia { aspect-ratio: 1; border-radius: 8px; background: var(--gray2); display: flex; align-items: center; justify-content: center; font-size: .7rem; color: var(--gray3); }
+    .divisor { border: none; border-top: 1px solid var(--gray2); }
+
+    /* ── LOADING ── */
+    .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(10,10,10,.85); z-index: 100; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+    .loading-overlay.ativo { display: flex; }
+    .spinner { width: 44px; height: 44px; border: 3px solid var(--gray2); border-top-color: var(--green); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-txt { font-size: .9rem; color: var(--gray3); }
+
+    /* ── SUCESSO ── */
+    .sucesso-icon { font-size: 5rem; text-align: center; animation: popIn .4s cubic-bezier(.17,.67,.35,1.3) both; }
+    @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+    .sucesso-titulo { font-family: var(--font-head); font-weight: 800; font-size: 1.8rem; text-align: center; }
+    .sucesso-sub { font-size: .9rem; color: var(--gray3); text-align: center; }
+    .msg-sucesso { background: #0f2a0f; border: 1px solid var(--green); border-radius: 10px; color: #80ff80; font-size: .85rem; padding: 12px 14px; display: none; margin-bottom: 8px; }
+    .msg-sucesso.visivel { display: block !important; }
+
+    /* ── ERRO ── */
+    .msg-erro { background: #2a0f0f; border: 1px solid var(--red); border-radius: 10px; color: #ff8080; font-size: .85rem; padding: 12px 14px; display: none; margin-bottom: 8px; }
+    .msg-erro.visivel { display: block !important; }
+
+
+    /* ── VEÍCULO INFO ── */
+    .veiculo-info { background: var(--gray); border-radius: var(--radius); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
+    .veiculo-info .nome { font-family: var(--font-head); font-weight: 700; font-size: 1rem; }
+    .veiculo-info .placa { background: var(--green); color: var(--black); font-weight: 800; font-size: .85rem; padding: 4px 10px; border-radius: 6px; letter-spacing: .06em; }
+
+    /* ── BOTTOM ── */
+    .bottom-action { padding: 0 24px; margin-top: auto; padding-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+    /* ── RESPONSIVO DESKTOP ── */
+    @media (min-width: 768px) {
+      .tela {
+        align-items: center;
+      }
+      .header {
+        width: 100%;
+        max-width: 480px;
+      }
+      .conteudo {
+        width: 100%;
+        max-width: 480px;
+      }
+      .bottom-action {
+        width: 100%;
+        max-width: 480px;
+      }
+      #tela-login {
+        padding: 48px 24px;
+      }
+      .login-card {
+        max-width: 400px;
+      }
+    }
+    #tela-sucesso.ativa { display: flex; flex-direction: column; min-height: 100vh; }
+    #modal-confirmacao { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 300; align-items: center; justify-content: center; padding: 24px; }
+    #modal-confirmacao.aberto { display: flex; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+    <div class="tela" id="tela-login">
+      <div class="login-card" style="margin:auto;padding:32px 24px;">
+        <img src="./img/LOGO NEXT - ORIGINAL.png" alt="Next Safety" class="login-logo-img">
+        <div class="login-subtitulo">Vistoria de Frota</div>
+        <div class="campo">
+          <label>E-mail</label>
+          <input type="email" id="email" placeholder="seu@nextsafety.com.br" autocomplete="email">
+        </div>
+        <div class="campo">
+          <label>Senha</label>
+          <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password"
+                onkeydown="if(event.key==='Enter') fazerLogin()">
+        </div>
+        <div class="msg-erro" id="erro-login"></div>
+        <button class="btn btn-primary" onclick="fazerLogin()">Entrar</button>
+        <button class="btn btn-secundario" onclick="mostrarTela('tela-cadastro')">Solicitar Acesso</button>
+      </div>
+    </div>
+  </div>
+    <!-- CADASTRO -->
+    <div class="tela" id="tela-cadastro" style="display:none;">
+      <div class="login-card" style="margin:auto;padding:32px 24px;">
+        <img src="./img/LOGO NEXT - ORIGINAL.png" alt="Next Safety" class="login-logo-img">
+        <div class="login-subtitulo">Solicitar Acesso</div>
+        <div class="campo">
+          <label>Nome</label>
+          <input type="text" id="cad-nome" placeholder="Seu nome">
+        </div>
+        <div class="campo">
+          <label>Sobrenome</label>
+          <input type="text" id="cad-sobrenome" placeholder="Seu sobrenome">
+        </div>
+        <div class="campo">
+          <label>E-mail</label>
+          <input type="email" id="cad-email" placeholder="seu@nextsafety.com.br">
+        </div>
+        <div class="campo">
+          <label>Senha</label>
+          <input type="password" id="cad-senha" placeholder="••••••••">
+        </div>
+        <div class="campo">
+          <label>Confirmar Senha</label>
+          <input type="password" id="cad-senha2" placeholder="••••••••"
+                onkeydown="if(event.key==='Enter') solicitarAcesso()">
+        </div>
+        <div class="msg-erro" id="erro-cadastro"></div>
+        <div class="msg-sucesso" id="sucesso-cadastro"></div>
+        <button class="btn btn-primary" onclick="solicitarAcesso()">Solicitar Acesso</button>
+        <div style="text-align:center;margin-top:12px;">
+          <a href="#" onclick="mostrarTela('tela-login')" style="font-size:13px;color:#888;">Já tenho acesso</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+  <!-- TIPO -->
+  <div class="tela" id="tela-tipo">
+    <div class="header">
+      <img src="./img/LOGO NEXT - ORIGINAL.png" alt="Next Safety" class="header-logo">
+      <div class="header-right">
+        <button class="menu-btn" onclick="toggleMenu(event)">⋯</button>
+        <div class="menu-dropdown" id="menu-tipo">
+          <div id="menu-admin-item-tipo"></div>
+          <hr class="menu-separador">
+          <button class="menu-item perigo" onclick="fazerLogout()">🚪 Sair da conta</button>
+        </div>
+      </div>
+    </div>
+    <div class="conteudo">
+      <div>
+        <h2>Tipo de <span class="destaque">vistoria</span></h2>
+        <p class="subtitulo">O que você vai fazer agora?</p>
+      </div>
+      <div class="tipo-grid">
+        <div class="tipo-card retirada" id="card-retirada" onclick="selecionarTipo('retirada')">
+          <div class="icone">🚗</div><div class="nome">Retirada</div><div class="desc">Saindo com o carro</div>
+        </div>
+        <div class="tipo-card devolucao" id="card-devolucao" onclick="selecionarTipo('devolucao')">
+          <div class="icone">🔑</div><div class="nome">Devolução</div><div class="desc">Entregando o carro</div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="btn btn-primary" id="btn-confirmar-tipo" onclick="confirmarTipo()" disabled>Continuar</button>
+    </div>
+    
+  </div>
+
+  <!-- VEÍCULO -->
+  <div class="tela" id="tela-veiculo">
+    <div class="header">
+      <img src="./img/LOGO NEXT - ORIGINAL.png" alt="Next Safety" class="header-logo">
+      <div class="header-right">
+        <div class="badge-tipo" id="badge-veiculo"></div>
+        <button class="menu-btn" onclick="toggleMenu(event)">⋯</button>
+        <div class="menu-dropdown" id="menu-veiculo">
+          <div id="menu-admin-item-veiculo"></div>
+          <hr class="menu-separador">
+          <button class="menu-item perigo" onclick="fazerLogout()">🚪 Sair da conta</button>
+        </div>
+      </div>
+    </div>
+    <div class="conteudo">
+      <div>
+        <h2>Qual <span class="destaque">carro</span>?</h2>
+        <p class="subtitulo">Selecione o veículo da frota</p>
+      </div>
+      <div class="campo">
+        <label>Veículo</label>
+        <select id="lista-veiculos"><option value="">Carregando veículos...</option></select>
+      </div>
+      <div class="campo">
+        <label>KM Atual</label>
+        <input type="number" id="km-atual" placeholder="Ex: 45230" inputmode="numeric">
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="btn btn-primary" onclick="confirmarVeiculo()">Avançar para Fotos</button>
+      <button class="btn btn-ghost" onclick="irParaTela('tela-veiculo')">← Voltar</button>
+
+    </div>
+  </div>
+
+  <!-- FOTOS -->
+  <div class="tela" id="tela-fotos">
+    <div class="header">
+      <img src="./img/LOGO NEXT - ORIGINAL.png" alt="Next Safety" class="header-logo">
+      <div class="header-right">
+        <div class="badge-tipo" id="badge-fotos"></div>
+        <button class="menu-btn" onclick="toggleMenu(event)">⋯</button>
+        <div class="menu-dropdown" id="menu-fotos">
+          <div id="menu-admin-item-fotos"></div>
+          <hr class="menu-separador">
+          <button class="menu-item perigo" onclick="fazerLogout()">🚪 Sair da conta</button>
+        </div>
+      </div>
+    </div>
+    <div class="conteudo">
+      <div>
+        <h2>Fotos do <span class="destaque">veículo</span></h2>
+        <p class="subtitulo">Toque em cada card para fotografar</p>
+      </div>
+      <div class="veiculo-info" id="info-veiculo-fotos"></div>
+      <div class="progresso-fotos">
+        <div class="dot" id="dot-0"></div><div class="dot" id="dot-1"></div>
+        <div class="dot" id="dot-2"></div><div class="dot" id="dot-3"></div><div class="dot" id="dot-4"></div>
+      </div>
+      <div class="fotos-grid">
+        <label class="foto-card" id="card-frente">
+          <div class="foto-icone">📷</div><div class="label">Frente</div>
+          <input type="file" id="foto-frente" accept="image/*" capture="environment" onchange="capturarFoto('frente', this)">
+        </label>
+        <label class="foto-card" id="card-traseira">
+          <div class="foto-icone">📷</div><div class="label">Traseira</div>
+          <input type="file" id="foto-traseira" accept="image/*" capture="environment" onchange="capturarFoto('traseira', this)">
+        </label>
+        <label class="foto-card" id="card-esquerda">
+          <div class="foto-icone">📷</div><div class="label">Lateral Esq.</div>
+          <input type="file" id="foto-esquerda" accept="image/*" capture="environment" onchange="capturarFoto('esquerda', this)">
+        </label>
+        <label class="foto-card" id="card-direita">
+          <div class="foto-icone">📷</div><div class="label">Lateral Dir.</div>
+          <input type="file" id="foto-direita" accept="image/*" capture="environment" onchange="capturarFoto('direita', this)">
+        </label>
+        <label class="foto-card painel" id="card-painel">
+          <div class="foto-icone">📷</div><div class="label">Painel / Km</div>
+          <input type="file" id="foto-painel" accept="image/*" capture="environment" onchange="capturarFoto('painel', this)">
+        </label>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="btn btn-primary" id="btn-revisar" onclick="irParaRevisao()" disabled>Revisar Vistoria</button>
+      <button class="btn btn-ghost" onclick="irParaTela('tela-veiculo')">← Voltar</button>
+
+    </div>
+  </div>
+
+  <!-- REVISÃO -->
+  <div class="tela" id="tela-revisao">
+    <div class="header">
+      <img src="./img/LOGO NEXT - ORIGINAL.png" alt="Next Safety" class="header-logo">
+      <div class="header-right">
+        <div class="badge-tipo" id="badge-revisao"></div>
+        <button class="menu-btn" onclick="toggleMenu(event)">⋯</button>
+        <div class="menu-dropdown" id="menu-revisao">
+          <div id="menu-admin-item-revisao"></div>
+          <hr class="menu-separador">
+          <button class="menu-item perigo" onclick="fazerLogout()">🚪 Sair da conta</button>
+        </div>
+      </div>
+    </div>
+      <div class="conteudo">
+        <div>
+          <h2>Revise antes de <span class="destaque">enviar</span></h2>
+          <p class="subtitulo">Confirme se tudo está correto</p>
+        </div>
+        <div class="revisao-card" id="revisao-dados"></div>
+        <div style="margin-top:16px;background:#1a2a1a;border-radius:var(--radius);padding:16px;border:1.5px solid var(--green);">
+          <div style="font-size:.75rem;color:var(--green);letter-spacing:.06em;text-transform:uppercase;font-weight:600;margin-bottom:8px;">
+            💬 Observação <span style="color:var(--white);font-weight:400;">(opcional)</span>
+          </div>
+          <textarea id="obs-vistoria" 
+            maxlength="300"
+            placeholder="Adicione uma observação: qual cliente visitou, condições do veículo, intercorrências..." 
+            rows="3" 
+            style="width:100%;background:transparent;border:none;color:var(--white);font-family:var(--font-body);font-size:.9rem;resize:none;outline:none;line-height:1.5;"></textarea>
+            <div style="text-align:right;font-size:.75rem;color:var(--white);margin-top:4px;">
+              <span id="obs-contador">0</span>/300
+            </div>
+        </div>
+      </div>
+      <div class="bottom-action">
+        <button class="btn btn-success" onclick="enviarVistoria()">✓ Confirmar e Enviar</button>
+        <button class="btn btn-ghost" onclick="irParaTela('tela-fotos')">← Voltar e Corrigir</button>
+      </div>
+ </div> 
+  <!-- SUCESSO -->
+  <div class="tela" id="tela-sucesso">
+    <div class="header">
+      <img src="./img/LOGO NEXT - ORIGINAL.png" alt="Next Safety" class="header-logo">
+      <div class="header-right">
+        <button class="menu-btn" onclick="toggleMenu(event)">⋯</button>
+        <div class="menu-dropdown" id="menu-sucesso">
+          <div id="menu-admin-item-sucesso"></div>
+          <hr class="menu-separador">
+          <button class="menu-item perigo" onclick="fazerLogout()">🚪 Sair da conta</button>
+        </div>
+      </div>
+    </div>
+    <div class="conteudo" style="align-items:center;justify-content:center;gap:16px;text-align:center;">
+      <div class="sucesso-icon">✅</div>
+      <h2 class="sucesso-titulo">Vistoria <span class="destaque">registrada!</span></h2>
+      <p class="sucesso-sub" id="sucesso-sub">Os dados foram salvos com sucesso.</p>
+    </div>
+    <div class="bottom-action">
+      <button class="btn btn-primary" onclick="novaVistoria()">Nova Vistoria</button>
+      <button class="btn btn-ghost" onclick="fazerLogout()">Sair</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-txt" id="loading-txt">Aguarde...</div>
+</div>
+  <!-- MODAL CONFIRMAÇÃO -->
+  <div class="modal-overlay" id="modal-confirmacao" onclick="fecharModalConfirmacao(event)">
+    <div style="margin:auto;background:#1a1a1a;border:1.5px solid var(--gray4);border-radius:16px;padding:24px;max-width:340px;width:100%;display:flex;flex-direction:column;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,.6);">
+      <div style="font-size:1rem;font-weight:700;color:var(--white);" id="confirm-titulo">Confirmar</div>
+      <p id="confirm-mensagem" style="color:var(--white);font-size:.9rem;line-height:1.5;margin:0;"></p>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn btn-primary" id="confirm-btn-ok" onclick="confirmarAcao()" style="flex:1;padding:12px;">Confirmar</button>
+        <button class="btn btn-ghost" id="confirm-btn-cancelar" onclick="fecharModalConfirmacao()" style="flex:1;padding:12px;border:1.5px solid var(--gray4);">Cancelar</button>
+      </div>
+    </div>
+  </div>
+<script>
+  const supabaseUrl = 'https://jpvrarlpifbtdvzzbsjx.supabase.co';
+  const supabaseKey = 'sb_publishable__4KCNTPkGpshCATcxmrCVQ_A7TZ9Sab';
+  const sb = supabase.createClient(supabaseUrl, supabaseKey);
+
+  // ── Admins ──
+  const ADMINS = ['luam.silva@nextsafety.com.br'];
+
+  let estado = {
+    usuario: null, tipo: null, veiculo: null, km: null,
+    fotos:     { frente: null, traseira: null, esquerda: null, direita: null, painel: null },
+    fotosBlob: { frente: null, traseira: null, esquerda: null, direita: null, painel: null }
+  };
+
+  const LABELS_FOTO = { frente: 'Frente', traseira: 'Traseira', esquerda: 'Lateral Esq.', direita: 'Lateral Dir.', painel: 'Painel' };
+  const ORDEM_FOTOS = ['frente', 'traseira', 'esquerda', 'direita', 'painel'];
+  const TELAS_COM_MENU = ['tipo', 'veiculo', 'fotos', 'revisao', 'sucesso'];
+
+  // ── Utilidades ──
+  function irParaTela(id) {
+    document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
+    document.getElementById(id).classList.add('ativa');
+    window.scrollTo(0, 0);
+    fecharTodosMenus();
+  }
+
+  function mostrarLoading(txt = 'Aguarde...') {
+    document.getElementById('loading-txt').textContent = txt;
+    document.getElementById('loading').classList.add('ativo');
+  }
+  function esconderLoading() { document.getElementById('loading').classList.remove('ativo'); }
+
+  function mostrarErro(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.add('visivel');
+    setTimeout(() => el.classList.remove('visivel'), 5000);
+  }
+
+  function setBadge(id, tipo) {
+    const el = document.getElementById(id);
+    if (!tipo) return;
+    el.textContent = tipo === 'retirada' ? '🚗 Retirada' : '🔑 Devolução';
+    el.className = `badge-tipo ${tipo}`;
+  }
+
+  // ── Menu dinâmico por perfil ──
+  function renderizarMenuAdmin() {
+      TELAS_COM_MENU.forEach(tela => {
+        const el = document.getElementById(`menu-admin-item-${tela}`);
+        if (!el) return;
+        el.innerHTML = `<button class="menu-item" onclick="window.location.href='central.html'">
+          📋 Central do Usuário
+        </button>`;
+      });
+    }
+
+  function mostrarBloqueado() {
+    fecharTodosMenus();
+    alert('Você não tem permissão para acessar o painel administrativo.');
+  }
+
+  function toggleMenu(event) {
+    event.stopPropagation();
+    const btn = event.currentTarget;
+    const dropdown = btn.nextElementSibling;
+    const estaAberto = dropdown.classList.contains('aberto');
+    fecharTodosMenus();
+    if (!estaAberto) dropdown.classList.add('aberto');
+  }
+
+  function fecharTodosMenus() {
+    document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('aberto'));
+  }
+
+  document.addEventListener('click', fecharTodosMenus);
+
+  // ── Login ──
+    async function fazerLogin() {
+      const email = document.getElementById('email').value.trim();
+      const senha = document.getElementById('senha').value;
+      if (!email || !senha) { mostrarErro('erro-login', 'Preencha e-mail e senha.'); return; }
+      
+      mostrarLoading('Verificando...');
+
+      const { data: solicitacao } = await sb.from('solicitacoes')
+        .select('status')
+        .eq('email', email)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (solicitacao?.status === 'pendente') {
+        esconderLoading();
+        mostrarErro('erro-login', '⏳ Seu cadastro ainda está aguardando aprovação de um administrador.');
+        return;
+      }
+
+      if (solicitacao?.status === 'rejeitado') {
+        esconderLoading();
+        mostrarErro('erro-login', '❌ Seu cadastro foi rejeitado. Entre em contato com o administrador.');
+        return;
+      }
+      // verifica se usuario está inativo na tabela usuarios
+      const { data: usuarioData } = await sb.from('usuarios')
+        .select('status')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (usuarioData?.status === 'inativo') {
+        esconderLoading();
+        mostrarErro('erro-login', '🚫 Seu acesso foi inativado. Entre em contato com seu supervisor.');
+        return;
+      }
+
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
+      esconderLoading();
+      if (error) { mostrarErro('erro-login', 'E-mail ou senha inválidos.'); return; }
+      estado.usuario = data.user;
+      renderizarMenuAdmin();
+      irParaTela('tela-tipo');
+    }
+
+  async function fazerLogout() {
+    await sb.auth.signOut();
+    estado = {
+      usuario: null, tipo: null, veiculo: null, km: null,
+      fotos:     { frente: null, traseira: null, esquerda: null, direita: null, painel: null },
+      fotosBlob: { frente: null, traseira: null, esquerda: null, direita: null, painel: null }
+    };
+    irParaTela('tela-login');
+  }
+    function mostrarTela(id) {
+    document.querySelectorAll('.tela').forEach(t => t.style.display = 'none');
+    document.getElementById(id).style.display = 'flex';
+  }
+    async function solicitarAcesso() {
+      const nome = document.getElementById('cad-nome').value.trim();
+      const sobrenome = document.getElementById('cad-sobrenome').value.trim();
+      const email = document.getElementById('cad-email').value.trim();
+      const senha = document.getElementById('cad-senha').value;
+      const senha2 = document.getElementById('cad-senha2').value;
+      const erro = document.getElementById('erro-cadastro');
+
+      erro.classList.remove('visivel');
+
+      if (!nome || !sobrenome || !email || !senha) {
+        erro.style.color = '';
+        erro.textContent = 'Preencha todos os campos.';
+        erro.classList.add('visivel'); return;
+      }
+      if (senha !== senha2) {
+        erro.style.color = '';
+        erro.textContent = 'As senhas não coincidem.';
+        erro.classList.add('visivel'); return;
+      }
+
+      const { data: existente } = await sb.from('solicitacoes')
+        .select('id')
+        .eq('email', email)
+        .eq('status', 'pendente')
+        .maybeSingle();
+
+      if (existente) {
+        erro.style.color = 'orange';
+        erro.textContent = '⏳ Cadastro já solicitado! Aguarde a aprovação do administrador.';
+        erro.classList.add('visivel'); return;
+      }
+
+      const { error } = await sb.from('solicitacoes').insert([{
+        nome, sobrenome, email, senha, status: 'pendente'
+      }]);
+
+      if (error) {
+        erro.textContent = 'Erro ao enviar solicitação.';
+        erro.classList.add('visivel');
+    } else {
+        const sucesso = document.getElementById('sucesso-cadastro');
+        sucesso.textContent = '✅ Solicitação enviada! Aguarde aprovação do administrador.';
+        sucesso.classList.add('visivel');
+        document.getElementById('cad-nome').value = '';
+        document.getElementById('cad-sobrenome').value = '';
+        document.getElementById('cad-email').value = '';
+        document.getElementById('cad-senha').value = '';
+        document.getElementById('cad-senha2').value = '';
+    }
+    }
+  // ── Tipo ──
+  function selecionarTipo(tipo) {
+    estado.tipo = tipo;
+    document.querySelectorAll('.tipo-card').forEach(c => c.classList.remove('selecionado'));
+    document.getElementById(`card-${tipo}`).classList.add('selecionado');
+    document.getElementById('btn-confirmar-tipo').removeAttribute('disabled');
+  }
+
+  async function confirmarTipo() {
+    setBadge('badge-veiculo', estado.tipo);
+    await carregarVeiculos();
+    irParaTela('tela-veiculo');
+  }
+
+  // ── Veículos ──
+  async function carregarVeiculos() {
+    const { data, error } = await sb.from('veiculos').select('*').eq('ativo', true).order('modelo');
+    if (error) { alert('Erro ao carregar veículos: ' + error.message); return; }
+    const sel = document.getElementById('lista-veiculos');
+    sel.innerHTML = '<option value="">Selecione um veículo...</option>';
+    data.forEach(v => {
+      sel.innerHTML += `<option value="${v.id}" data-modelo="${v.modelo}" data-placa="${v.placa}" data-cor="${v.cor || ''}">${v.modelo} — ${v.placa}${v.cor ? ' (' + v.cor + ')' : ''}</option>`;
+    });
+  }
+
+    async function confirmarVeiculo() {
+      const sel = document.getElementById('lista-veiculos');
+      const km  = document.getElementById('km-atual').value;
+
+      if (!sel.value) { mostrarErroVeiculo('Selecione um veículo.'); return; }
+      if (!km || km <= 0) { mostrarErroVeiculo('Informe o KM atual do veículo.'); return; }
+
+      const opt = sel.options[sel.selectedIndex];
+      const veiculoId = parseInt(sel.value);
+
+      mostrarLoading('Verificando...');
+
+      // busca última vistoria do veículo
+      const { data: ultimaVistoria } = await sb.from('vistorias')
+        .select('km_atual')
+        .eq('veiculo_id', veiculoId)
+        .order('data_registro', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // busca km_cadastro se não houver vistoria
+      let kmReferencia = ultimaVistoria?.km_atual;
+      if (!kmReferencia) {
+        const { data: veiculo } = await sb.from('veiculos')
+          .select('km_cadastro')
+          .eq('id', veiculoId)
+          .single();
+        kmReferencia = veiculo?.km_cadastro || 0;
+      }
+
+      esconderLoading();
+
+      // KM abaixo do último
+      if (kmReferencia && parseInt(km) < kmReferencia) {
+        pedirConfirmacao(
+          '⚠️ KM Inválido',
+          `O KM informado (${Number(km).toLocaleString('pt-BR')} km) é menor que o último registrado (${Number(kmReferencia).toLocaleString('pt-BR')} km). Corrija antes de continuar.`,
+          () => {},
+          true
+        );
+        return;
+      }
+
+      // KM muito alto
+      if (kmReferencia && parseInt(km) - kmReferencia > 500) {
+        pedirConfirmacao(
+          '⚠️ KM Elevado',
+          `O KM informado está ${(parseInt(km) - kmReferencia).toLocaleString('pt-BR')} km acima do último registrado. Deseja continuar mesmo assim?`,
+          () => prosseguirVeiculo(sel, opt, veiculoId, km)
+        );
+        return;
+      }
+
+      // regra de retirada sem devolução
+      if (estado.tipo === 'retirada') {
+        mostrarLoading('Verificando...');
+        const { data: retiradaAtiva } = await sb.from('vistorias')
+          .select('*')
+          .eq('veiculo_id', veiculoId)
+          .eq('tipo', 'retirada')
+          .order('data_registro', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (retiradaAtiva) {
+          const { data: devolucao } = await sb.from('vistorias')
+            .select('id')
+            .eq('veiculo_id', veiculoId)
+            .eq('tipo', 'devolucao')
+            .gt('data_registro', retiradaAtiva.data_registro)
+            .maybeSingle();
+
+          if (!devolucao) {
+            // verifica se já tem solicitação aprovada de regularização
+            const { data: solicitacaoAprovada } = await sb.from('solicitacoes')
+              .select('id')
+              .eq('tipo', 'retirada_bloqueada')
+              .eq('vistoria_id', retiradaAtiva.id)
+              .eq('status', 'aprovado')
+              .limit(1);
+
+              console.log('retiradaAtiva.id:', retiradaAtiva.id);
+              console.log('solicitacaoAprovada:', solicitacaoAprovada);
+
+              if (solicitacaoAprovada && solicitacaoAprovada.length > 0) {
+                // admin aprovou, deixa passar
+                esconderLoading();
+              } else {
+                esconderLoading();
+                const dataRetirada = formatarData(retiradaAtiva.data_registro);
+                const tecnico = retiradaAtiva.email_logado?.split('@')[0] || 'outro usuário';
+                pedirConfirmacao(
+                  '🚗 Veículo Não Devolvido',
+                  `Este veículo foi retirado por ${tecnico} em ${dataRetirada} e ainda não foi devolvido. Deseja solicitar ao administrador a regularização?`,
+                  () => solicitarRegularizacao(veiculoId, retiradaAtiva)
+                );
+                return;
+              }
+            }
+          }
+        esconderLoading();
+      }
+
+      // regra de devolução sem retirada
+      if (estado.tipo === 'devolucao') {
+        mostrarLoading('Verificando...');
+        const { data: minhaRetirada } = await sb.from('vistorias')
+          .select('*')
+          .eq('veiculo_id', veiculoId)
+          .eq('tipo', 'retirada')
+          .eq('email_logado', estado.usuario.email)
+          .order('data_registro', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!minhaRetirada) {
+          esconderLoading();
+          pedirConfirmacao(
+            '⚠️ Sem Retirada',
+            'Você não possui uma retirada ativa deste veículo. Você não fez a retirada da última viagem. Por favor ajuste para prosseguir.',
+            () => {}, true // só fecha
+          );
+          return;
+        }
+
+        const { data: jaDevolveu } = await sb.from('vistorias')
+          .select('id')
+          .eq('veiculo_id', veiculoId)
+          .eq('tipo', 'devolucao')
+          .eq('email_logado', estado.usuario.email)
+          .gt('data_registro', minhaRetirada.data_registro)
+          .maybeSingle();
+
+        if (jaDevolveu) {
+          esconderLoading();
+          pedirConfirmacao(
+            '⚠️ Já Devolvido',
+            'Você já devolveu este veículo. Caso precise de ajuste, solicite ao administrador.',
+            () => {}, true // só fecha
+          );
+          return;
+        }
+        esconderLoading();
+      }
+
+      prosseguirVeiculo(sel, opt, veiculoId, km);
+    }
+    let acaoPendente = null;
+
+    function pedirConfirmacao(titulo, mensagem, callback, apenasFechar=false) {
+      document.getElementById('confirm-titulo').textContent = titulo;
+      document.getElementById('confirm-mensagem').textContent = mensagem;
+      const btnConfirmar = document.getElementById('confirm-btn-ok');
+      const btnCancelar = document.getElementById('confirm-btn-cancelar');
+      
+      if (apenasFechar) {
+        btnConfirmar.textContent = 'OK';
+        btnCancelar.style.setProperty('display', 'none', 'important');
+      } else {
+        btnConfirmar.textContent = 'Confirmar';
+        btnCancelar.style.setProperty('display', 'flex', 'important');
+      }
+      
+      acaoPendente = callback;
+      document.getElementById('modal-confirmacao').classList.add('aberto');
+    }
+
+    function confirmarAcao() {
+      const callback = acaoPendente;
+      acaoPendente = null;
+      document.getElementById('modal-confirmacao').classList.remove('aberto');
+      if (callback) callback();
+    }
+
+    function fecharModalConfirmacao(event) {
+      if (event && event.target !== document.getElementById('modal-confirmacao')) return;
+      document.getElementById('modal-confirmacao').classList.remove('aberto');
+      acaoPendente = null;
+    }
+    function prosseguirVeiculo(sel, opt, veiculoId, km) {
+      estado.veiculo = { id: sel.value, modelo: opt.dataset.modelo, placa: opt.dataset.placa, cor: opt.dataset.cor };
+      estado.km = km;
+      document.getElementById('info-veiculo-fotos').innerHTML =
+        `<div><div class="nome">${estado.veiculo.modelo}</div><div style="font-size:.8rem;color:var(--gray3);margin-top:2px;">${estado.veiculo.cor}</div></div>
+        <div class="placa">${estado.veiculo.placa}</div>`;
+      setBadge('badge-fotos', estado.tipo);
+      irParaTela('tela-fotos');
+    }
+
+    function mostrarErroVeiculo(msg) {
+      pedirConfirmacao('⚠️ Atenção', msg, () => {});
+    }
+  async function solicitarRegularizacao(veiculoId, retiradaAtiva) {
+    const descricao = `Veículo retirado por ${retiradaAtiva.email_logado} em ${formatarData(retiradaAtiva.data_registro)} sem devolução registrada.`;
+    mostrarLoading('Enviando solicitação...');
+    const { error } = await sb.from('solicitacoes').insert({
+      tipo: 'retirada_bloqueada',
+      email_solicitante: estado.usuario.email,
+      vistoria_id: retiradaAtiva.id,
+      descricao,
+      status: 'pendente'
+    });
+    esconderLoading();
+    if (error) { alert('Erro: ' + error.message); return; }
+    alert('✅ Solicitação enviada! Um administrador irá regularizar a situação.');
+  }
+
+  // ── Fotos ──
+  function capturarFoto(chave, input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const url  = URL.createObjectURL(file);
+    estado.fotos[chave]     = url;
+    estado.fotosBlob[chave] = file;
+    const card = document.getElementById(`card-${chave}`);
+    card.classList.add('capturada');
+    card.innerHTML = `
+      <img src="${url}" alt="${chave}">
+      <div class="overlay"><div class="check">✅</div></div>
+      <input type="file" id="foto-${chave}" accept="image/*" capture="environment" onchange="capturarFoto('${chave}', this)">
+    `;
+    document.getElementById(`dot-${ORDEM_FOTOS.indexOf(chave)}`).classList.add('ok');
+    if (ORDEM_FOTOS.every(k => estado.fotos[k])) document.getElementById('btn-revisar').removeAttribute('disabled');
+  }
+
+  // ── Revisão ──
+  function irParaRevisao() {
+    setBadge('badge-revisao', estado.tipo);
+    const fotosHtml = ORDEM_FOTOS.map(k =>
+      estado.fotos[k] ? `<img class="revisao-foto" src="${estado.fotos[k]}" alt="${k}">` : `<div class="revisao-foto-vazia">—</div>`
+    ).join('');
+    document.getElementById('revisao-dados').innerHTML = `
+      <div class="revisao-linha"><span class="key">Tipo</span><span class="val">${estado.tipo === 'retirada' ? '🚗 Retirada' : '🔑 Devolução'}</span></div>
+      <hr class="divisor">
+      <div class="revisao-linha"><span class="key">Veículo</span><span class="val">${estado.veiculo.modelo}</span></div>
+      <div class="revisao-linha"><span class="key">Placa</span><span class="val">${estado.veiculo.placa}</span></div>
+      <div class="revisao-linha"><span class="key">KM Atual</span><span class="val">${Number(estado.km).toLocaleString('pt-BR')} km</span></div>
+      <div class="revisao-linha"><span class="key">Técnico</span><span class="val">${estado.usuario.email}</span></div>
+      <hr class="divisor">
+      <div style="font-size:.75rem;color:var(--gray3);letter-spacing:.04em;text-transform:uppercase;font-weight:600;">Fotos (${ORDEM_FOTOS.filter(k => estado.fotos[k]).length}/5)</div>
+      <div class="revisao-fotos-grid">${fotosHtml}</div>
+    `;
+    irParaTela('tela-revisao');
+  }
+
+  // ── Upload e envio ──
+  async function uploadFoto(chave) {
+    const file = estado.fotosBlob[chave];
+    if (!file) return null;
+    const ext  = file.name.split('.').pop() || 'jpg';
+    const path = `vistorias/${estado.usuario.id}/${Date.now()}_${chave}.${ext}`;
+    const { error } = await sb.storage.from('fotos-vistoria').upload(path, file, { upsert: true });
+    if (error) throw new Error(`Erro ao enviar foto ${chave}: ${error.message}`);
+    const { data: pub } = sb.storage.from('fotos-vistoria').getPublicUrl(path);
+    return pub.publicUrl;
+  }
+    async function enviarVistoria() {
+      mostrarLoading('Preparando envio...');
+      try {
+        const urls = {};
+        for (const chave of ORDEM_FOTOS) {
+          console.log('Enviando foto:', chave);
+          document.getElementById('loading-txt').textContent = `Enviando: ${LABELS_FOTO[chave]}...`;
+          urls[chave] = await uploadFoto(chave);
+          console.log('Foto enviada:', chave, urls[chave]);
+        }
+        console.log('Salvando vistoria...');
+        document.getElementById('loading-txt').textContent = 'Salvando vistoria...';
+        const observacao = document.getElementById('obs-vistoria').value.trim();
+        const { error } = await sb.from('vistorias').insert({
+          user_id: estado.usuario.id, email_logado: estado.usuario.email,
+          veiculo_id: parseInt(estado.veiculo.id), tipo: estado.tipo,
+          km_atual: parseInt(estado.km),
+          foto_frente: urls.frente, foto_traseira: urls.traseira,
+          foto_lateral_esq: urls.esquerda, foto_lateral_dir: urls.direita, foto_painel: urls.painel,
+          observacao: observacao || null
+        });
+        console.log('Erro insert:', error);
+        if (error) throw new Error(error.message);
+        esconderLoading();
+        document.getElementById('sucesso-sub').textContent = `Vistoria de ${estado.tipo === 'retirada' ? 'retirada' : 'devolução'} registrada com sucesso.`;
+        irParaTela('tela-sucesso');
+      } catch (err) {
+        esconderLoading();
+        alert('Erro ao enviar: ' + err.message);
+      }
+      // limpa overlays das fotos
+      document.querySelectorAll('.overlay').forEach(el => el.style.display = 'none');
+    }
+
+  // ── Nova vistoria ──
+  function novaVistoria() {
+    const usuario = estado.usuario;
+    estado = {
+      usuario, tipo: null, veiculo: null, km: null,
+      fotos:     { frente: null, traseira: null, esquerda: null, direita: null, painel: null },
+      fotosBlob: { frente: null, traseira: null, esquerda: null, direita: null, painel: null }
+    };
+    ORDEM_FOTOS.forEach((chave, i) => {
+      const card = document.getElementById(`card-${chave}`);
+      card.classList.remove('capturada');
+      card.innerHTML = `<div class="foto-icone">📷</div><div class="label">${LABELS_FOTO[chave]}</div><input type="file" id="foto-${chave}" accept="image/*" capture="environment" onchange="capturarFoto('${chave}', this)">`;
+      document.getElementById(`dot-${i}`).classList.remove('ok');
+    });
+    document.getElementById('btn-revisar').setAttribute('disabled', '');
+    document.querySelectorAll('.tipo-card').forEach(c => c.classList.remove('selecionado'));
+    document.getElementById('btn-confirmar-tipo').setAttribute('disabled', '');
+    irParaTela('tela-tipo');
+  }
+
+  // ── Init ──
+  (async () => {
+    const { data } = await sb.auth.getSession();
+    if (data.session) {
+      estado.usuario = data.session.user;
+      renderizarMenuAdmin();
+      irParaTela('tela-tipo');
+    } else {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('acao') === 'vistoria') {
+        irParaTela('tela-login');
+      } else {
+        irParaTela('tela-login');
+      }
+    }
+  })();
+      document.getElementById('obs-vistoria').addEventListener('input', function() {
+      document.getElementById('obs-contador').textContent = this.value.length;
+    });
+    function formatarData(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'}) + ' às ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    }
+</script>
+</body>
+</html>

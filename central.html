@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Next Safety — Central</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #f4f5f2;
+      --surface:  #ffffff;
+      --black:    #1a1d1f;
+      --gray1:    #4a4f54;
+      --gray2:    #6b7280;
+      --gray3:    #9ca3af;
+      --gray4:    #e5e7eb;
+      --green:    #5a8a1e;
+      --green-bg: #eef5e0;
+      --ns-green: #8dc63f;
+      --orange:   #e07b20;
+      --orange-bg:#fef3e2;
+      --blue:     #1a4a7a;
+      --blue-bg:  #e8f0f8;
+      --red:      #c0392b;
+      --red-bg:   #fdecea;
+      --yellow:   #b45309;
+      --yellow-bg:#fef9c3;
+      --radius:   12px;
+      --font-head:'Syne', sans-serif;
+      --font-body:'DM Sans', sans-serif;
+      --shadow:   0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+      --shadow-lg:0 8px 32px rgba(0,0,0,.14);
+    }
+    html, body { min-height: 100vh; background: var(--bg); color: var(--black); font-family: var(--font-body); font-size: 15px; -webkit-font-smoothing: antialiased; }
+
+    .tela { display: none; }
+    .tela.ativa { display: block; }
+    #tela-central.ativa { display: flex; flex-direction: column; min-height: 100vh; }
+
+    .topbar { background: var(--black); padding: 0 32px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+    .topbar-logo { height: 28px; object-fit: contain; filter: brightness(0) invert(1); }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .topbar-user { font-size: .78rem; color: #888; }
+    .badge-perfil { font-size: .65rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 20px; }
+    .badge-perfil.admin { background: #2a3a1e; color: var(--ns-green); border: 1px solid #3d5a2a; }
+    .badge-perfil.basico { background: #1e2a3a; color: #60b4ff; border: 1px solid #2a3a5a; }
+    .btn-voltar { background: #2e2e2b; border: none; border-radius: 8px; color: #f0ede8; cursor: pointer; font-family: var(--font-body); font-size: .8rem; padding: 7px 14px; transition: background .2s; }
+    .btn-voltar:hover { background: #3e3e3b; }
+
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--gray4); padding: 0 32px; background: var(--surface); overflow-x: auto; }
+    .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; color: var(--gray2); cursor: pointer; font-family: var(--font-head); font-size: .82rem; font-weight: 600; letter-spacing: .03em; padding: 14px 18px; text-transform: uppercase; transition: all .15s; white-space: nowrap; }
+    .tab-btn:hover { color: var(--black); }
+    .tab-btn.ativo { border-bottom-color: var(--ns-green); color: var(--black); }
+    .tab-btn .badge-count { background: var(--red); color: #fff; font-size: .62rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+
+    .central-main { flex: 1; padding: 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
+    .tab-content { display: none; }
+    .tab-content.ativo { display: block; }
+
+    .lista-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+    .lista-titulo { font-family: var(--font-head); font-weight: 700; font-size: 1.2rem; }
+    .filtros { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filtro-btn { background: var(--surface); border: 1.5px solid var(--gray4); border-radius: 20px; color: var(--gray2); cursor: pointer; font-family: var(--font-body); font-size: .8rem; font-weight: 500; padding: 6px 14px; transition: all .15s; }
+    .filtro-btn:hover { border-color: var(--gray2); color: var(--black); }
+    .filtro-btn.ativo { background: var(--black); border-color: var(--black); color: #fff; }
+
+    .btn-acao { background: var(--ns-green); border: none; border-radius: 10px; color: #fff; cursor: pointer; font-family: var(--font-head); font-weight: 700; font-size: .82rem; letter-spacing: .03em; padding: 9px 18px; text-transform: uppercase; transition: opacity .15s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-acao:hover { opacity: .88; }
+    .btn-acao.vermelho { background: var(--red); }
+    .btn-acao.cinza { background: var(--gray2); }
+    .btn-acao.azul { background: var(--blue); }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .stat-card { background: var(--surface); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); }
+    .stat-label { font-size: .72rem; font-weight: 500; color: var(--gray2); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 6px; }
+    .stat-valor { font-family: var(--font-head); font-weight: 800; font-size: 1.9rem; color: var(--black); line-height: 1; }
+
+    .vistorias-lista { display: flex; flex-direction: column; gap: 10px; }
+    .vistoria-row { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 20px; display: grid; grid-template-columns: auto 1fr auto auto auto; align-items: center; gap: 14px; cursor: pointer; transition: box-shadow .2s, transform .15s; border: 1.5px solid transparent; }
+    .vistoria-row:hover { box-shadow: var(--shadow-lg); transform: translateY(-1px); border-color: var(--gray4); }
+    .vr-tipo { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+    .vr-tipo.retirada { background: var(--blue-bg); }
+    .vr-tipo.devolucao { background: var(--green-bg); }
+    .vr-info { min-width: 0; }
+    .vr-veiculo { font-family: var(--font-head); font-weight: 700; font-size: .93rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .vr-meta { font-size: .76rem; color: var(--gray2); margin-top: 3px; }
+    .vr-badge { font-size: .7rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+    .vr-badge.retirada { background: var(--blue-bg); color: var(--blue); }
+    .vr-badge.devolucao { background: var(--green-bg); color: var(--green); }
+    .vr-arrow { color: var(--gray3); font-size: 1rem; flex-shrink: 0; }
+    .vr-obs { font-size: .72rem; color: var(--gray2); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+
+    .frota-lista { display: flex; flex-direction: column; gap: 10px; }
+    .frota-row { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 20px; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 16px; border: 1.5px solid transparent; transition: box-shadow .2s; }
+    .frota-row:hover { box-shadow: var(--shadow-lg); }
+    .frota-row.inativo { opacity: .5; }
+    .locadora-badge { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: .62rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; flex-shrink: 0; }
+    .locadora-badge.movida { background: var(--orange-bg); color: var(--orange); }
+    .locadora-badge.localiza { background: var(--green-bg); color: var(--green); }
+    .locadora-badge.sem { background: var(--gray4); color: var(--gray2); }
+    .frota-info { min-width: 0; }
+    .frota-modelo { font-family: var(--font-head); font-weight: 700; font-size: .93rem; }
+    .frota-meta { font-size: .76rem; color: var(--gray2); margin-top: 3px; }
+    .frota-placa { background: var(--black); color: #fff; font-weight: 800; font-size: .76rem; padding: 3px 9px; border-radius: 6px; letter-spacing: .06em; flex-shrink: 0; }
+    .frota-acoes { display: flex; gap: 8px; flex-shrink: 0; }
+    .btn-inativar { background: var(--red-bg); border: 1px solid #f5c6c0; border-radius: 8px; color: var(--red); cursor: pointer; font-size: .75rem; font-weight: 600; padding: 5px 11px; transition: background .15s; }
+    .btn-inativar:hover { background: #f9d5d0; }
+    .btn-ativar { background: var(--green-bg); border: 1px solid #c3e6a0; border-radius: 8px; color: var(--green); cursor: pointer; font-size: .75rem; font-weight: 600; padding: 5px 11px; transition: background .15s; }
+    .btn-ativar:hover { background: #d4efc0; }
+
+    .solic-lista { display: block; flex-direction: column; gap: 12px; }
+    .solic-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; border-left: 4px solid var(--yellow); }
+    .solic-card.tipo-veiculo { border-left-color: var(--orange); }
+    .solic-card.tipo-usuario { border-left-color: var(--blue); }
+    .solic-card.tipo-cancelamento { border-left-color: var(--red); }
+    .solic-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .solic-tipo-badge { font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; flex-shrink: 0; }
+    .solic-tipo-badge.veiculo { background: var(--orange-bg); color: var(--orange); }
+    .solic-tipo-badge.usuario { background: var(--blue-bg); color: var(--blue); }
+    .solic-tipo-badge.cancelamento { background: var(--red-bg); color: var(--red); }
+    .solic-tipo-badge.bloqueada { background: var(--yellow-bg); color: var(--yellow); }
+    .solic-titulo { font-family: var(--font-head); font-weight: 700; font-size: .95rem; }
+    .solic-detalhe { font-size: .8rem; color: var(--gray2); margin-top: 4px; }
+    .solic-acoes { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .btn-aprovar { background: var(--green-bg); border: 1px solid #c3e6a0; border-radius: 8px; color: var(--green); cursor: pointer; font-size: .78rem; font-weight: 700; padding: 7px 14px; }
+    .btn-aprovar:hover { background: #d4efc0; }
+    .btn-rejeitar { background: var(--red-bg); border: 1px solid #f5c6c0; border-radius: 8px; color: var(--red); cursor: pointer; font-size: .78rem; font-weight: 700; padding: 7px 14px; }
+    .btn-rejeitar:hover { background: #f9d5d0; }
+    .btn-notificar { background: var(--yellow-bg); border: 1px solid #fde68a; border-radius: 8px; color: var(--yellow); cursor: pointer; font-size: .78rem; font-weight: 700; padding: 7px 14px; }
+    .btn-notificar:hover { background: #fef#08a; }
+
+    .usuarios-lista { display: flex; flex-direction: column; gap: 10px; }
+    .usuario-row { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 20px; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 16px; }
+    .usuario-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--black); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-weight: 700; font-size: .88rem; flex-shrink: 0; }
+    .usuario-info { min-width: 0; }
+    .usuario-nome { font-family: var(--font-head); font-weight: 700; font-size: .93rem; }
+    .usuario-email { font-size: .76rem; color: var(--gray2); margin-top: 3px; }
+    .usuario-perfil-badge { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; flex-shrink: 0; }
+    .usuario-perfil-badge.admin { background: var(--green-bg); color: var(--green); }
+    .usuario-perfil-badge.basico { background: var(--blue-bg); color: var(--blue); }
+    .usuario-perfil-badge.pendente { background: var(--yellow-bg); color: var(--yellow); }
+    .usuario-perfil-badge.rejeitado { background: var(--red-bg); color: var(--red); }
+    .btn-promover { background: var(--green-bg); border: 1px solid #c3e6a0; border-radius: 8px; color: var(--green); cursor: pointer; font-size: .75rem; font-weight: 600; padding: 5px 11px; }
+    .btn-promover:hover { background: #d4efc0; }
+    .btn-rebaixar { background: var(--gray4); border: 1px solid var(--gray3); border-radius: 8px; color: var(--gray1); cursor: pointer; font-size: .75rem; font-weight: 600; padding: 5px 11px; }
+    .btn-rebaixar:hover { background: var(--gray3); color: #fff; }
+
+    .historico-veiculo { margin-bottom: 20px; }
+    .historico-veiculo-header { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 20px; display: flex; align-items: center; gap: 14px; cursor: pointer; }
+    .historico-veiculo-header:hover { box-shadow: var(--shadow-lg); }
+    .hist-modelo { font-family: var(--font-head); font-weight: 700; font-size: .95rem; flex: 1; }
+    .hist-placa { background: var(--black); color: #fff; font-weight: 800; font-size: .74rem; padding: 3px 9px; border-radius: 6px; letter-spacing: .06em; }
+    .hist-pares { padding-left: 16px; display: none; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .hist-pares.aberto { display: flex; }
+    .par-card { background: var(--surface); border-radius: 10px; box-shadow: var(--shadow); padding: 14px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-left: 4px solid var(--ns-green); }
+    .par-card.aberto-ret { border-left-color: var(--blue); }
+    .par-col { display: flex; flex-direction: column; gap: 4px; }
+    .par-titulo { font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--gray2); margin-bottom: 4px; }
+    .par-info { font-size: .8rem; color: var(--black); }
+    .par-km { font-family: var(--font-head); font-weight: 700; font-size: .95rem; }
+    .par-km-label { font-size: .68rem; color: var(--gray3); }
+    .km-percorrido { background: var(--green-bg); border-radius: 8px; padding: 8px 12px; text-align: center; grid-column: span 2; }
+    .km-percorrido .valor { font-family: var(--font-head); font-weight: 800; font-size: 1.15rem; color: var(--green); }
+    .km-percorrido .label { font-size: .7rem; color: var(--gray2); }
+    .tag-aberta { background: var(--blue-bg); color: var(--blue); border-radius: 6px; font-size: .68rem; font-weight: 700; padding: 2px 8px; width: fit-content; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--gray2); }
+    .empty-icon { font-size: 2.8rem; margin-bottom: 12px; }
+    .empty-txt { font-size: .9rem; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 200; align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; backdrop-filter: blur(4px); }
+    .modal-overlay.aberto { display: flex; }
+    .modal { background: var(--surface); border-radius: 20px; width: 100%; max-width: 720px; box-shadow: var(--shadow-lg); animation: slideUp .3s cubic-bezier(.2,.8,.3,1) both; overflow: hidden; margin: auto; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(24px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .modal-header { padding: 22px 24px 18px; border-bottom: 1px solid var(--gray4); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .modal-titulo { font-family: var(--font-head); font-weight: 800; font-size: 1.1rem; }
+    .modal-fechar { background: var(--gray4); border: none; border-radius: 8px; color: var(--gray1); cursor: pointer; font-size: .85rem; font-weight: 600; padding: 7px 13px; }
+    .modal-fechar:hover { background: var(--gray3); color: #fff; }
+    .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; max-height: 80vh; overflow-y: auto; }
+
+    .detalhe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .detalhe-item { background: var(--bg); border-radius: 10px; padding: 12px 14px; }
+    .detalhe-item.full { grid-column: span 2; }
+    .detalhe-key { font-size: .7rem; font-weight: 500; color: var(--gray2); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 4px; }
+    .detalhe-val { font-weight: 600; font-size: .93rem; }
+    .fotos-titulo { font-family: var(--font-head); font-weight: 700; font-size: .88rem; margin-bottom: 12px; color: var(--gray1); }
+    .fotos-detalhe-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .foto-detalhe-wrap { position: relative; border-radius: 12px; overflow: hidden; background: var(--bg); aspect-ratio: 4/3; }
+    .foto-detalhe-wrap.painel { grid-column: span 2; aspect-ratio: 16/7; }
+    .foto-detalhe-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+    .foto-detalhe-label { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,.6); color: #fff; font-size: .66rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: 5px; }
+    .foto-vazia { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--gray3); font-size: .8rem; }
+    .obs-box { background: var(--bg); border-radius: 10px; padding: 12px 14px; }
+    .obs-texto { font-size: .88rem; color: var(--black); line-height: 1.5; margin-top: 6px; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-campo { display: flex; flex-direction: column; gap: 6px; }
+    .form-campo.full { grid-column: span 2; }
+    .form-campo label { font-size: .73rem; font-weight: 600; color: var(--gray2); letter-spacing: .05em; text-transform: uppercase; }
+    .form-campo input, .form-campo select {
+      background: var(--bg); border: 1.5px solid var(--gray4); border-radius: 10px;
+      color: var(--black); font-family: var(--font-body); font-size: .93rem;
+      padding: 11px 14px; outline: none; transition: border-color .2s; -webkit-appearance: none;
+    }
+    .form-campo input:focus, .form-campo select:focus { border-color: var(--ns-green); }
+    .locadora-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .locadora-opt { border: 2px solid var(--gray4); border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; transition: all .15s; }
+    .locadora-opt:hover { border-color: var(--gray2); }
+    .locadora-opt.sel-movida { border-color: var(--orange); background: var(--orange-bg); }
+    .locadora-opt.sel-localiza { border-color: var(--ns-green); background: var(--green-bg); }
+    .loc-emoji { font-size: 1.4rem; }
+    .loc-nome { font-family: var(--font-head); font-weight: 700; font-size: .88rem; margin-top: 4px; }
+    .fotos-cadastro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .foto-cadastro-card { border: 2px dashed var(--gray4); border-radius: 10px; aspect-ratio: 4/3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; position: relative; overflow: hidden; transition: border-color .2s; }
+    .foto-cadastro-card:hover { border-color: var(--gray2); }
+    .foto-cadastro-card.capturada { border-color: var(--ns-green); border-style: solid; }
+    .foto-cadastro-card.painel { grid-column: span 2; aspect-ratio: 16/7; }
+    .foto-cadastro-card input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; z-index: 2; }
+    .foto-cadastro-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 8px; z-index: 0; }
+    .foto-cadastro-card .overlay { position: absolute; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; border-radius: 8px; z-index: 1; }
+    .foto-cadastro-icone { font-size: 1.4rem; z-index: 1; }
+    .flabel { font-size: .68rem; font-weight: 600; color: var(--gray2); letter-spacing: .04em; text-transform: uppercase; z-index: 1; }
+    .info-box { background: var(--blue-bg); border-radius: 10px; padding: 12px 14px; font-size: .83rem; color: var(--blue); line-height: 1.5; }
+
+    .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 300; align-items: center; justify-content: center; cursor: zoom-out; }
+    .lightbox.aberto { display: flex; }
+    .lightbox img { max-width: 95vw; max-height: 92vh; object-fit: contain; border-radius: 8px; }
+    .lightbox-fechar { position: absolute; top: 16px; right: 20px; background: rgba(255,255,255,.15); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-size: 1rem; padding: 8px 14px; }
+
+    .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(244,245,242,.85); z-index: 400; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+    .loading-overlay.ativo { display: flex; }
+    .spinner { width: 38px; height: 38px; border: 3px solid var(--gray4); border-top-color: var(--ns-green); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-txt { font-size: .83rem; color: var(--gray2); }
+
+    @media (max-width: 640px) {
+      .central-main { padding: 16px; }
+      .topbar { padding: 0 16px; }
+      .tabs { padding: 0 12px; }
+      .detalhe-grid { grid-template-columns: 1fr; }
+      .detalhe-item.full { grid-column: span 1; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-campo.full { grid-column: span 1; }
+      .vistoria-row { grid-template-columns: auto 1fr auto; }
+      .vr-badge, .vr-obs { display: none; }
+      .frota-row { grid-template-columns: auto 1fr; }
+      .frota-acoes { display: none; }
+      .usuario-row { grid-template-columns: auto 1fr; }
+      .topbar-user { display: none; }
+    }
+    /* ── AGENDA ── */
+    .agenda-grid-header { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
+    .agenda-grid-header > div { text-align:center; font-size:.75rem; color:var(--gray2); font-weight:600; padding:4px; }
+    .agenda-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+    .agenda-dia { background:var(--surface); border-radius:8px; padding:8px 4px; min-height:64px; cursor:pointer; border:1.5px solid transparent; transition:border .15s; display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .agenda-dia:hover { border-color:var(--gray3); }
+    .agenda-dia.outro-mes { opacity:.3; cursor:default; }
+    .agenda-dia.hoje { border-color:var(--green); }
+    .agenda-dia .dia-num { font-size:.8rem; font-weight:700; }
+    .agenda-dia .dia-status { font-size:.65rem; font-weight:600; padding:2px 6px; border-radius:20px; }
+    .agenda-dia .dia-status.disponivel { background:var(--green-bg); color:var(--green); }
+    .agenda-dia .dia-status.ocupado { background:var(--red-bg); color:var(--red); }
+  </style>
+</head>
+<body>
+
+<div class="tela" id="tela-central">
+  <nav class="topbar">
+    <img src="./img/LOGO NEXT - ORIGINAL.png" alt="Next Safety" class="topbar-logo">
+    <div class="topbar-right">
+      <span class="topbar-user" id="topbar-user"></span>
+      <span class="badge-perfil" id="topbar-badge"></span>
+      <button class="btn-voltar" onclick="fazerLogout()">Voltar</button>
+    </div>
+  </nav>
+
+  <div class="tabs">
+    <button class="tab-btn ativo" onclick="mudarTab('vistorias', this)">Vistorias</button>
+    <button class="tab-btn" onclick="mudarTab('frota', this)">Frota</button>
+    <button class="tab-btn" onclick="mudarTab('historico', this)">Histórico</button>
+    <button class="tab-btn" onclick="mudarTab('agenda', this)">📅 Agenda</button>
+    <button class="tab-btn" id="tab-btn-solic" onclick="mudarTab('solicitacoes', this)" style="display:none">Solicitações <span class="badge-count" id="badge-count-solic" style="display:none"></span></button>
+    <button class="tab-btn" id="tab-btn-usuarios" onclick="mudarTab('usuarios', this)" style="display:none">Usuários</button>
+  </div>
+
+  <div class="central-main">
+
+    <!-- VISTORIAS -->
+    <div class="tab-content ativo" id="tab-vistorias">
+      <div class="stats-grid" id="stats-vistorias"></div>
+      <div class="lista-header">
+        <div class="lista-titulo">Vistorias</div>
+        <div class="filtros">
+          <button class="filtro-btn ativo" onclick="filtrar('todos', this)">Todos</button>
+          <button class="filtro-btn" onclick="filtrar('retirada', this)">Retiradas</button>
+          <button class="filtro-btn" onclick="filtrar('devolucao', this)">Devoluções</button>
+        </div>
+      </div>
+      <div class="vistorias-lista" id="vistorias-lista"></div>
+    </div>
+
+    <!-- FROTA -->
+    <div class="tab-content" id="tab-frota">
+      <div class="lista-header">
+        <div class="lista-titulo">Frota</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <div class="filtros">
+            <button class="filtro-btn ativo" onclick="filtrarFrota('todos', this)">Todos</button>
+            <button class="filtro-btn" onclick="filtrarFrota('ativos', this)">Ativos</button>
+            <button class="filtro-btn" onclick="filtrarFrota('inativos', this)">Inativos</button>
+          </div>
+          <button class="btn-acao" id="btn-add-veiculo" onclick="abrirModalVeiculo()">+ Novo Veículo</button>
+        </div>
+      </div>
+      <div class="frota-lista" id="frota-lista"></div>
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div class="tab-content" id="tab-historico">
+      <div class="lista-header"><div class="lista-titulo">Histórico por Veículo</div></div>
+      <div id="historico-lista"></div>
+    </div>
+
+    <!-- AGENDA -->
+    <div class="tab-content" id="tab-agenda">
+      <div class="lista-header">
+        <div class="lista-titulo">📅 Agenda de Veículos</div>
+      </div>
+
+    <!-- Seleção de veículo -->
+    <div id="agenda-selecao" style="display:flex;flex-direction:column;align-items:center;padding:32px 24px;gap:24px;">
+      <div style="text-align:center;">
+        <div style="font-size:3rem;">🚗</div>
+        <div style="font-weight:700;font-size:1.1rem;margin-top:8px;">Selecione um veículo</div>
+        <div style="color:var(--gray2);font-size:.9rem;margin-top:4px;">Escolha um veículo para visualizar a disponibilidade</div>
+      </div>
+      <div id="agenda-veiculos-lista" style="width:100%;display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
+    <!-- Calendário -->
+    <div id="agenda-calendario" style="display:none;">
+      <div id="agenda-veiculo-nome" style="font-family:var(--font-head);font-weight:800;font-size:1.2rem;margin-bottom:16px;"></div>
+      <div style="margin-bottom:12px;">
+        <button class="filtro-btn" onclick="voltarSelecaoAgenda()">← Selecionar outro veículo</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <button class="filtro-btn" onclick="mudarMesAgenda(-1)">‹ Anterior</button>
+        <div id="agenda-mes-titulo" style="font-weight:700;font-size:1rem;"></div>
+        <button class="filtro-btn" onclick="mudarMesAgenda(1)">Próximo ›</button>
+      </div>
+
+      <div class="agenda-grid-header">
+        <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+      </div>
+      <div class="agenda-grid" id="agenda-grid"></div>
+    </div>
+    </div>
+
+
+
+    <!-- SOLICITAÇÕES (admin) -->
+    <div class="tab-content" id="tab-solicitacoes">
+      <div class="lista-header"><div class="lista-titulo">Solicitações Pendentes</div></div>
+      <div class="solic-lista" id="solic-lista"></div>
+    </div>
+
+    <!-- USUÁRIOS (admin) -->
+    <div class="tab-content" id="tab-usuarios">
+      <div class="lista-header">
+        <div class="lista-titulo">Usuários</div>
+        <div class="filtros">
+          <button class="filtro-btn ativo" onclick="filtrarUsuarios('todos', this)">Todos</button>
+          <button class="filtro-btn" onclick="filtrarUsuarios('ativo', this)">Ativos</button>
+          <button class="filtro-btn" onclick="filtrarUsuarios('pendente', this)">Pendentes</button>
+        </div>
+      </div>
+      <div class="usuarios-lista" id="usuarios-lista"></div>
+    </div>
+    <!-- MODAL EDITAR USUÁRIO -->
+    <div class="modal-overlay" id="modal-editar-usuario" onclick="fecharModalUsuario(event)">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-titulo">Editar Usuário</div>
+          <button class="modal-fechar" onclick="fecharModalUsuario()">✕ Fechar</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-campo">
+              <label>Nome</label>
+              <input type="text" id="edit-nome" placeholder="Nome">
+            </div>
+            <div class="form-campo">
+              <label>Sobrenome</label>
+              <input type="text" id="edit-sobrenome" placeholder="Sobrenome">
+            </div>
+            <div class="form-campo full">
+              <label>E-mail</label>
+              <input type="email" id="edit-email" disabled style="opacity:0.5;">
+            </div>
+            <div class="form-campo full">
+              <label>Perfil</label>
+              <select id="edit-perfil">
+                <option value="usuario">Usuário Básico</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
+          </div>
+          <input type="hidden" id="edit-email-original">
+          <button class="btn-acao" style="width:100%;justify-content:center;padding:14px;" onclick="salvarEdicaoUsuario()">✓ Salvar</button>
+        </div>
+      </div>
+    </div>
+<!-- MODAL DETALHE VISTORIA -->
+<div class="modal-overlay" id="modal-overlay" onclick="fecharModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-titulo" id="modal-titulo"></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn-acao vermelho" id="btn-solicitar-cancel" onclick="solicitarCancelamento()" style="display:none;font-size:.75rem;padding:7px 12px;">Solicitar Cancelamento</button>
+        <button class="btn-acao" id="btn-editar-vistoria" onclick="abrirModalEditarVistoria()" style="display:none;font-size:.75rem;padding:7px 12px;">✏️ Editar</button>
+        <button class="btn-acao vermelho" id="btn-excluir-vistoria" onclick="confirmarExcluirVistoria()" style="display:none;font-size:.75rem;padding:7px 12px;">🗑️ Excluir</button>
+        <button class="modal-fechar" onclick="fecharModalDireto()">✕ Fechar</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR VISTORIA -->
+<div class="modal-overlay" id="modal-editar-vistoria" onclick="fecharModalEditarVistoria(event)">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-titulo">✏️ Editar Vistoria</div>
+      <button class="modal-fechar" onclick="fecharModalEditarVistoria()">✕ Fechar</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-campo">
+          <label>KM Atual</label>
+          <input type="number" id="edit-vistoria-km" placeholder="Ex: 45230" inputmode="numeric">
+        </div>
+        <div class="form-campo">
+          <label>Tipo</label>
+          <select id="edit-vistoria-tipo">
+            <option value="retirada">🚗 Retirada</option>
+            <option value="devolucao">🔑 Devolução</option>
+          </select>
+        </div>
+        <div class="form-campo full">
+          <label>Observação</label>
+          <textarea id="edit-vistoria-obs" rows="3" placeholder="Observação..." style="width:100%;background:var(--gray4);border:none;border-radius:var(--radius);color:var(--white);padding:12px;font-family:var(--font-body);font-size:.9rem;resize:none;outline:none;"></textarea>
+        </div>
+        <div class="form-campo full">
+          <label>Motivo da edição</label>
+          <textarea id="edit-vistoria-motivo" rows="2" placeholder="Descreva o motivo da edição..." style="width:100%;background:var(--gray4);border:none;border-radius:var(--radius);color:var(--white);padding:12px;font-family:var(--font-body);font-size:.9rem;resize:none;outline:none;"></textarea>
+        </div>
+      </div>
+      <button class="btn-acao" style="width:100%;justify-content:center;padding:14px;margin-top:8px;" onclick="salvarEdicaoVistoria()">✓ Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VEÍCULO -->
+<div class="modal-overlay" id="modal-cadastro" onclick="fecharModalCadastro(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-titulo" id="modal-cadastro-titulo">Novo Veículo</div>
+      <button class="modal-fechar" onclick="fecharModalCadastroDireto()">✕ Fechar</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box" id="info-box-solicitacao" style="display:none">
+        📋 Você está <strong>solicitando</strong> o cadastro deste veículo. Um administrador irá revisar e aprovar.
+      </div>
+      <div class="form-grid">
+        <div class="form-campo"><label>Modelo *</label><input type="text" id="cad-modelo" placeholder="Ex: Fiat Cronos"></div>
+        <div class="form-campo"><label>Placa *</label><input type="text" id="cad-placa" placeholder="ABC1D23" style="text-transform:uppercase"></div>
+        <div class="form-campo"><label>Ano</label><input type="number" id="cad-ano" placeholder="2023" inputmode="numeric"></div>
+        <div class="form-campo"><label>Cor</label><input type="text" id="cad-cor" placeholder="Prata"></div>
+        <div class="form-campo"><label>KM Atual</label><input type="number" id="cad-km" placeholder="Ex: 15000" inputmode="numeric"></div>
+        <div class="form-campo full">
+          <label>Locadora</label>
+          <div class="locadora-grid">
+            <div class="locadora-opt" id="loc-movida" onclick="selecionarLocadora('movida')">
+              <div class="loc-emoji">🟠</div><div class="loc-nome" style="color:var(--orange)">Movida</div>
+            </div>
+            <div class="locadora-opt" id="loc-localiza" onclick="selecionarLocadora('localiza')">
+              <div class="loc-emoji">🟢</div><div class="loc-nome" style="color:var(--green)">Localiza</div>
+            </div>
+          </div>
+        </div>
+        <div class="form-campo full">
+          <label>Fotos do Estado Original</label>
+          <div class="fotos-cadastro-grid">
+            <label class="foto-cadastro-card" id="cad-card-frente"><div class="foto-cadastro-icone">📷</div><div class="flabel">Frente</div><input type="file" accept="image/*" capture="environment" onchange="capturarFotoCadastro('frente', this)"></label>
+            <label class="foto-cadastro-card" id="cad-card-traseira"><div class="foto-cadastro-icone">📷</div><div class="flabel">Traseira</div><input type="file" accept="image/*" capture="environment" onchange="capturarFotoCadastro('traseira', this)"></label>
+            <label class="foto-cadastro-card" id="cad-card-esquerda"><div class="foto-cadastro-icone">📷</div><div class="flabel">Lateral Esq.</div><input type="file" accept="image/*" capture="environment" onchange="capturarFotoCadastro('esquerda', this)"></label>
+            <label class="foto-cadastro-card" id="cad-card-direita"><div class="foto-cadastro-icone">📷</div><div class="flabel">Lateral Dir.</div><input type="file" accept="image/*" capture="environment" onchange="capturarFotoCadastro('direita', this)"></label>
+            <label class="foto-cadastro-card painel" id="cad-card-painel"><div class="foto-cadastro-icone">📷</div><div class="flabel">Painel / Km</div><input type="file" accept="image/*" capture="environment" onchange="capturarFotoCadastro('painel', this)"></label>
+          </div>
+        </div>
+      </div>
+      <button class="btn-acao" id="btn-salvar-veiculo" style="width:100%;justify-content:center;padding:14px;" onclick="salvarVeiculo()">✓ Salvar Veículo</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="fecharLightbox()">
+  <button class="lightbox-fechar" onclick="fecharLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-txt" id="loading-txt">Carregando...</div>
+</div>
+
+<div id="toast" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e1e1e;border:1px solid var(--green);border-radius:10px;color:#80ff80;padding:14px 24px;font-size:.9rem;font-weight:600;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.4);">
+  <span id="toast-msg"></span>
+</div>
+<!-- MODAL CONFIRMAÇÃO -->
+<div class="modal-overlay" id="modal-confirmacao" onclick="fecharModalConfirmacao(event)">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-titulo" id="confirm-titulo">Confirmar</div>
+      <button class="modal-fechar" onclick="fecharModalConfirmacao()">✕ Fechar</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-mensagem" style="color:var(--gray1);margin-bottom:16px;"></p>
+      <textarea id="confirm-input" placeholder="Digite aqui..." rows="3"
+        style="width:100%;background:var(--gray4);border:none;border-radius:var(--radius);color:var(--white);padding:12px;font-family:var(--font-body);font-size:.9rem;resize:none;outline:none;display:none;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn-acao" id="confirm-btn-ok" onclick="confirmarAcao()">Confirmar</button>
+        <button class="btn-inativar" onclick="fecharModalConfirmacao()" style="padding:10px 20px;">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const supabaseUrl = 'https://jpvrarlpifbtdvzzbsjx.supabase.co';
+  const supabaseKey = 'sb_publishable__4KCNTPkGpshCATcxmrCVQ_A7TZ9Sab';
+  const sb = supabase.createClient(supabaseUrl, supabaseKey);
+  const ADMINS = ['luam.silva@nextsafety.com.br'];
+
+  let usuarioAtual = null;
+  let isAdmin = false;
+  let todasVistorias = [];
+  let todaFrota = [];
+  let todosUsuarios = [];
+  let todasSolicitacoes = [];
+  let vistoriaAtualId = null;
+  let locadoraSelecionada = null;
+  let fotosCadastroBlob = { frente:null, traseira:null, esquerda:null, direita:null, painel:null };
+  // ── AGENDA ──
+  let agendaMesAtual = new Date().getMonth();
+  let agendaAnoAtual = new Date().getFullYear();
+  let agendaVeiculoId = null;
+  let reservasAgenda = [];
+  async function inicializarAgenda() {
+    const { data } = await sb.from('veiculos').select('id, modelo, placa, cor, locadora').eq('ativo', true).order('modelo');
+    const container = document.getElementById('agenda-veiculos-lista');
+    if (!data || !data.length) { container.innerHTML = '<div class="empty-state"><div class="empty-txt">Nenhum veículo ativo</div></div>'; return; }
+    
+    container.innerHTML = data.map(v => {
+      const locadoraClass = v.locadora === 'movida' ? 'movida' : v.locadora === 'localiza' ? 'localiza' : 'sem';
+      const locadoraLabel = v.locadora === 'movida' ? 'MOV' : v.locadora === 'localiza' ? 'LOC' : '—';
+      return `<div class="frota-row" onclick="carregarAgenda(${v.id})" style="cursor:pointer;">
+        <div class="locadora-badge ${locadoraClass}">${locadoraLabel}</div>
+        <div class="frota-info">
+          <div class="frota-modelo">${v.modelo}</div>
+          <div class="frota-meta">${v.cor || '—'}</div>
+        </div>
+        <div class="frota-placa">${v.placa}</div>
+        <div style="color:var(--gray2);font-size:1.2rem;">›</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function carregarAgenda(veiculoId) {
+    if (!veiculoId) return;
+    agendaVeiculoId = parseInt(veiculoId);
+    
+    // pega o nome do veículo selecionado
+    const { data: veiculo } = await sb.from('veiculos')
+      .select('modelo, placa')
+      .eq('id', veiculoId)
+      .single();
+    
+    if (veiculo) {
+      document.getElementById('agenda-veiculo-nome').textContent = `🚗 ${veiculo.modelo} — ${veiculo.placa}`;
+    }
+
+    document.getElementById('agenda-selecao').style.display = 'none';
+    document.getElementById('agenda-calendario').style.display = 'block';
+    await renderizarCalendario();
+  }
+
+  async function renderizarCalendario() {
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    document.getElementById('agenda-mes-titulo').textContent = `${meses[agendaMesAtual]} ${agendaAnoAtual}`;
+
+    // busca reservas do mês
+    const primeiroDia = new Date(agendaAnoAtual, agendaMesAtual, 1).toISOString().split('T')[0];
+    const ultimoDia = new Date(agendaAnoAtual, agendaMesAtual + 1, 0).toISOString().split('T')[0];
+
+    const { data: reservasRaw } = await sb.from('agenda_reservas')
+      .select('*')
+      .eq('veiculo_id', agendaVeiculoId)
+      .in('status', ['ativo', 'reservado'])      .gte('data_reserva', primeiroDia)
+      .lte('data_reserva', ultimoDia);
+
+    const emails = [...new Set((reservasRaw || []).map(r => r.email_usuario))];
+    const { data: usuariosData } = emails.length > 0 
+      ? await sb.from('usuarios').select('email, nome, sobrenome').in('email', emails)
+      : { data: [] };
+
+    reservasAgenda = (reservasRaw || []).map(r => {
+      const u = (usuariosData || []).find(u => u.email === r.email_usuario);
+      return { ...r, nome_usuario: u ? `${u.nome} ${u.sobrenome}` : r.email_usuario.split('@')[0] };
+    });
+    renderizarDias();
+  }
+
+  function renderizarDias() {
+    const grid = document.getElementById('agenda-grid');
+    const hoje = new Date();
+    const primeiroDia = new Date(agendaAnoAtual, agendaMesAtual, 1);
+    const ultimoDia = new Date(agendaAnoAtual, agendaMesAtual + 1, 0);
+    const diaSemanaInicio = primeiroDia.getDay();
+    
+    let html = '';
+
+    // dias do mês anterior
+    for (let i = 0; i < diaSemanaInicio; i++) {
+      html += `<div class="agenda-dia outro-mes"></div>`;
+    }
+
+    
+    
+    // dias do mês atual
+    for (let d = 1; d <= ultimoDia.getDate(); d++) {
+      const dataStr = `${agendaAnoAtual}-${String(agendaMesAtual+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const reserva = reservasAgenda.find(r => r.data_reserva === dataStr);
+      const ehHoje = hoje.getDate()===d && hoje.getMonth()===agendaMesAtual && hoje.getFullYear()===agendaAnoAtual;
+      const nomeUsuario = reserva?.nome_usuario || reserva?.email_usuario?.split('@')[0] || '';
+      const statusHtml = reserva
+        ? `<div class="dia-status ocupado">🔴 Ocupado</div><div style="font-size:.6rem;color:var(--gray2);">${nomeUsuario}</div>`
+        : `<div class="dia-status disponivel">🟢 Livre</div>`;
+
+      html += `<div class="agenda-dia${ehHoje?' hoje':''}" onclick="clicarDia('${dataStr}', ${!!reserva}, '${reserva?.id||''}', '${nomeUsuario}')">
+        <div class="dia-num">${d}</div>
+        ${statusHtml}
+      </div>`;
+    }
+
+    grid.innerHTML = html;
+  }
+
+  function mudarMesAgenda(direcao) {
+    agendaMesAtual += direcao;
+    if (agendaMesAtual > 11) { agendaMesAtual = 0; agendaAnoAtual++; }
+    if (agendaMesAtual < 0)  { agendaMesAtual = 11; agendaAnoAtual--; }
+    renderizarCalendario();
+  }
+  function clicarDia(data, ocupado, reservaId, nomeUsuario) {
+    if (ocupado) {
+      // verifica se é o proprio usuario
+      const reserva = reservasAgenda.find(r => r.id === reservaId);
+      if (reserva?.email_usuario === usuarioAtual.email) {
+        pedirConfirmacao(
+          '📅 Sua Reserva',
+          `Você reservou este dia. Deseja cancelar a reserva?`,
+          () => cancelarReservaAgenda(reservaId)
+        );
+      } else {
+        pedirConfirmacao(
+          '🔴 Dia Ocupado',
+          `Este dia está reservado por ${nomeUsuario}. Deseja solicitar a troca?`,
+          () => solicitarTrocaAgenda(data, reservaId, reserva?.email_usuario)
+        );
+      }
+    } else {
+      pedirConfirmacao(
+        '🟢 Dia Disponível',
+        `Deseja reservar o veículo para o dia ${data.split('-').reverse().join('/')}?`,
+        () => reservarDia(data)
+      );
+    }
+  }
+  async function reservarDia(data) {
+    mostrarLoading('Reservando...');
+    const { error } = await sb.from('agenda_reservas').insert({
+      veiculo_id: agendaVeiculoId,
+      user_id: usuarioAtual.id,
+      email_usuario: usuarioAtual.email,
+      data_reserva: data,
+      status: 'ativo'
+    });
+    esconderLoading();
+    if (error) { alert('Erro: ' + error.message); return; }
+    mostrarToast('✅ Dia reservado com sucesso!');
+    await renderizarCalendario();
+  }
+  async function cancelarReservaAgenda(reservaId) {
+    mostrarLoading('Cancelando reserva...');
+    const { error } = await sb.from('agenda_reservas').update({ status: 'cancelado' }).eq('id', reservaId);
+    esconderLoading();
+    if (error) { alert('Erro: ' + error.message); return; }
+    mostrarToast('✅ Reserva cancelada!');
+    await renderizarCalendario();
+  }
+
+  async function solicitarTrocaAgenda(data, reservaId, emailOcupante) {
+    mostrarLoading('Enviando solicitação...');
+    const { error } = await sb.from('solicitacoes').insert({
+      tipo: 'troca_agenda',
+      email_solicitante: usuarioAtual.email,
+      descricao: `${usuarioAtual.email} solicita o veículo no dia ${data.split('-').reverse().join('/')}. Reservado por: ${emailOcupante}`,
+      status: 'pendente',
+      dados_json: JSON.stringify({ data, reservaId, emailOcupante, veiculoId: agendaVeiculoId })
+    });
+    esconderLoading();
+    if (error) { alert('Erro: ' + error.message); return; }
+    mostrarToast('📋 Solicitação de troca enviada!');
+  }
+  function mostrarLoading(txt='Carregando...') { document.getElementById('loading-txt').textContent=txt; document.getElementById('loading').classList.add('ativo'); }
+  function esconderLoading() { document.getElementById('loading').classList.remove('ativo'); }
+  function formatarData(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' às ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  }
+  function iniciais(n,s) { return ((n?.[0]||'')+(s?.[0]||'')).toUpperCase()||'?'; }
+
+  function mudarTab(tab, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('ativo'));
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    document.getElementById('tab-'+tab).classList.add('ativo');
+    if (tab==='frota') carregarFrota();
+    if (tab==='historico') carregarHistorico();
+    if (tab==='solicitacoes') carregarSolicitacoes();
+    if (tab==='usuarios') carregarUsuarios();
+    if (tab==='agenda') inicializarAgenda();
+  }
+    function confirmarVeiculoAgenda() {
+    const sel = document.getElementById('agenda-select-veiculo');
+    if (!sel.value) { mostrarToast('Selecione um veículo primeiro!'); return; }
+    carregarAgenda(sel.value);
+  }
+
+  function voltarSelecaoAgenda() {
+    document.getElementById('agenda-selecao').style.display = 'flex';
+    document.getElementById('agenda-calendario').style.display = 'none';
+    agendaVeiculoId = null;
+  }
+
+    async function fazerLogout() { 
+      window.location.href='index.html'; 
+    }
+  // ── VISTORIAS ──
+  async function carregarVistorias() {
+    mostrarLoading();
+    let query = sb.from('vistorias').select('*, veiculos(modelo,placa,cor)').order('data_registro',{ascending:false});
+    if (!isAdmin) query = query.eq('email_logado', usuarioAtual.email);
+    const {data, error} = await query;
+    esconderLoading();
+    if (error) { alert('Erro: '+error.message); return; }
+    todasVistorias = data;
+    renderizarStats(data);
+    renderizarLista(data);
+  }
+
+  function renderizarStats(data) {
+    const stats = [
+      {label:'Total', valor:data.length},
+      {label:'Retiradas', valor:data.filter(v=>v.tipo==='retirada').length},
+      {label:'Devoluções', valor:data.filter(v=>v.tipo==='devolucao').length},
+    ];
+    if (isAdmin) { const emails=new Set(data.map(v=>v.email_logado).filter(Boolean)); stats.push({label:'Técnicos',valor:emails.size}); }
+    document.getElementById('stats-vistorias').innerHTML = stats.map(s=>
+      `<div class="stat-card"><div class="stat-label">${s.label}</div><div class="stat-valor">${s.valor}</div></div>`
+    ).join('');
+  }
+
+  function filtrar(tipo, btn) {
+    document.querySelectorAll('#tab-vistorias .filtro-btn').forEach(b=>b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    renderizarLista(tipo==='todos' ? todasVistorias : todasVistorias.filter(v=>v.tipo===tipo));
+  }
+
+  function renderizarLista(vistorias) {
+    const container = document.getElementById('vistorias-lista');
+    if (!vistorias.length) { container.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-txt">Nenhuma vistoria encontrada</div></div>`; return; }
+    container.innerHTML = vistorias.map(v => {
+      const veiculo = v.veiculos;
+      const nome = veiculo ? `${veiculo.modelo} — ${veiculo.placa}` : `Veículo #${v.veiculo_id}`;
+      const icone = v.tipo==='retirada' ? '🚗' : '🔑';
+      const tecnico = v.email_logado ? v.email_logado.split('@')[0] : 'Desconhecido';
+      const obsHtml = v.observacao ? `<div class="vr-obs">💬 ${v.observacao}</div>` : '';
+      return `<div class="vistoria-row" onclick="abrirDetalhe(${v.id})">
+        <div class="vr-tipo ${v.tipo}">${icone}</div>
+        <div class="vr-info">
+          <div class="vr-veiculo">${nome}</div>
+          <div class="vr-meta">${formatarData(v.data_registro)}${isAdmin?' · '+tecnico:''} · ${Number(v.km_atual).toLocaleString('pt-BR')} km</div>
+        </div>
+        ${obsHtml}
+        <div class="vr-badge ${v.tipo}">${v.tipo==='retirada'?'Retirada':'Devolução'}</div>
+        <div class="vr-arrow">›</div>
+      </div>`;
+    }).join('');
+  }
+
+  function abrirDetalhe(id) {
+    const v = todasVistorias.find(x=>x.id===id);
+    if (!v) return;
+    vistoriaAtualId = id;
+    const veiculo = v.veiculos;
+    const nome = veiculo?veiculo.modelo:`Veículo #${v.veiculo_id}`;
+    const placa = veiculo?veiculo.placa:'—';
+    const cor = veiculo?(veiculo.cor||'—'):'—';
+    document.getElementById('modal-titulo').textContent = `${v.tipo==='retirada'?'🚗 Retirada':'🔑 Devolução'} — ${nome}`;
+    const btnCancel = document.getElementById('btn-solicitar-cancel');
+    btnCancel.style.display = (!isAdmin && v.email_logado===usuarioAtual.email) ? 'inline-flex' : 'none';
+    const fotos = [
+      {label:'Frente',    url:v.foto_frente,     painel:false},
+      {label:'Traseira',  url:v.foto_traseira,    painel:false},
+      {label:'Lat. Esq.', url:v.foto_lateral_esq, painel:false},
+      {label:'Lat. Dir.', url:v.foto_lateral_dir, painel:false},
+      {label:'Painel/Km', url:v.foto_painel,      painel:true},
+    ];
+    const fotosHtml = fotos.map(f=>`
+      <div class="foto-detalhe-wrap${f.painel?' painel':''}">
+        ${f.url?`<img src="${f.url}" alt="${f.label}" onclick="abrirLightbox('${f.url}')">`:
+                `<div class="foto-vazia">Sem foto</div>`}
+        <div class="foto-detalhe-label">${f.label}</div>
+      </div>`).join('');
+    const obsHtml = v.observacao ? `<div class="obs-box"><div class="detalhe-key">Observação</div><div class="obs-texto">${v.observacao}</div></div>` : '';
+    document.getElementById('modal-body').innerHTML = `
+      <div class="detalhe-grid">
+        <div class="detalhe-item"><div class="detalhe-key">Veículo</div><div class="detalhe-val">${nome}</div></div>
+        <div class="detalhe-item"><div class="detalhe-key">Placa</div><div class="detalhe-val">${placa}</div></div>
+        <div class="detalhe-item"><div class="detalhe-key">Cor</div><div class="detalhe-val">${cor}</div></div>
+        <div class="detalhe-item"><div class="detalhe-key">KM</div><div class="detalhe-val">${Number(v.km_atual).toLocaleString('pt-BR')} km</div></div>
+        <div class="detalhe-item"><div class="detalhe-key">Técnico</div><div class="detalhe-val">${v.email_logado||'—'}</div></div>
+        <div class="detalhe-item"><div class="detalhe-key">Data / Hora</div><div class="detalhe-val">${formatarData(v.data_registro)}</div></div>
+      </div>
+      ${obsHtml}
+      <div><div class="fotos-titulo">📸 Fotos da vistoria</div><div class="fotos-detalhe-grid">${fotosHtml}</div></div>`;
+    document.getElementById('modal-overlay').classList.add('aberto');
+    document.body.style.overflow='hidden';
+    document.getElementById('btn-editar-vistoria').style.display = isAdmin ? 'inline-flex' : 'none';
+    document.getElementById('btn-excluir-vistoria').style.display = isAdmin ? 'inline-flex' : 'none';
+  }
+
+    function solicitarCancelamento() {
+      pedirConfirmacao(
+        '🗑️ Solicitar Cancelamento',
+        'Descreva o motivo do cancelamento:',
+        async () => {
+          const motivo = document.getElementById('confirm-input').value.trim();
+          if (!motivo) { alert('Informe o motivo.'); return; }
+          mostrarLoading('Enviando solicitação...');
+          const { error } = await sb.from('solicitacoes').insert({
+            tipo: 'cancelamento', vistoria_id: vistoriaAtualId,
+            email_solicitante: usuarioAtual.email, descricao: motivo, status: 'pendente'
+          });
+          esconderLoading();
+          if (error) { alert('Erro: ' + error.message); return; }
+          fecharModalDireto();
+          mostrarToast('📋 Solicitação enviada! Um administrador irá revisar.');
+        },
+        true
+      );
+    }
+  function fecharModal(e) { if (e.target===document.getElementById('modal-overlay')) fecharModalDireto(); }
+  function fecharModalDireto() { document.getElementById('modal-overlay').classList.remove('aberto'); document.body.style.overflow=''; vistoriaAtualId=null; }
+
+  // ── FROTA ──
+  async function carregarFrota() {
+    mostrarLoading();
+    const {data,error} = await sb.from('veiculos').select('*').order('modelo');
+    esconderLoading();
+    if (error) { alert('Erro: '+error.message); return; }
+    todaFrota = data;
+    renderizarFrota(data);
+  }
+
+  function filtrarFrota(filtro, btn) {
+    document.querySelectorAll('#tab-frota .filtro-btn').forEach(b=>b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    let f = todaFrota;
+    if (filtro==='ativos') f=todaFrota.filter(v=>v.ativo);
+    if (filtro==='inativos') f=todaFrota.filter(v=>!v.ativo);
+    renderizarFrota(f);
+  }
+
+  function renderizarFrota(frota) {
+    const container = document.getElementById('frota-lista');
+    if (!frota.length) { container.innerHTML=`<div class="empty-state"><div class="empty-icon">🚗</div><div class="empty-txt">Nenhum veículo encontrado</div></div>`; return; }
+    container.innerHTML = frota.map(v => {
+      const loc = v.locadora||'sem';
+      const locLabel = loc==='movida'?'Movida':loc==='localiza'?'Localiza':'—';
+      const kmF = v.km_cadastro ? Number(v.km_cadastro).toLocaleString('pt-BR')+' km' : '—';
+      const dataCad = v.data_cadastro ? new Date(v.data_cadastro).toLocaleDateString('pt-BR') : '—';
+      const acoesAdmin = isAdmin ? `
+        <div class="frota-acoes">
+          ${v.ativo
+            ? `<button class="btn-inativar" onclick="toggleAtivo(${v.id},false)">Inativar</button>`
+            : `<button class="btn-ativar"   onclick="toggleAtivo(${v.id},true)">Reativar</button>`}
+        </div>` : '';
+      return `<div class="frota-row${v.ativo?'':' inativo'}">
+        <div class="locadora-badge ${loc}">${locLabel}</div>
+        <div class="frota-info">
+          <div class="frota-modelo">${v.modelo}${v.ano?' '+v.ano:''}${v.cor?' · '+v.cor:''}</div>
+          <div class="frota-meta">Cadastro: ${dataCad} · KM: ${kmF}${!v.ativo?' · <strong>Inativo</strong>':''}</div>
+        </div>
+        <div class="frota-placa">${v.placa}</div>
+        ${acoesAdmin}
+      </div>`;
+    }).join('');
+  }
+
+  async function toggleAtivo(id, ativo) {
+    if (!confirm(`Deseja ${ativo?'reativar':'inativar'} este veículo?`)) return;
+    mostrarLoading();
+    const {error} = await sb.from('veiculos').update({ativo}).eq('id',id);
+    esconderLoading();
+    if (error) { alert('Erro: '+error.message); return; }
+    await carregarFrota();
+  }
+
+  function abrirModalVeiculo() {
+    locadoraSelecionada = null;
+    fotosCadastroBlob = {frente:null,traseira:null,esquerda:null,direita:null,painel:null};
+    const labels = {frente:'Frente',traseira:'Traseira',esquerda:'Lateral Esq.',direita:'Lateral Dir.',painel:'Painel / Km'};
+    ['frente','traseira','esquerda','direita','painel'].forEach(c => {
+      const card = document.getElementById('cad-card-'+c);
+      card.classList.remove('capturada');
+      card.innerHTML = `<div class="foto-cadastro-icone">📷</div><div class="flabel">${labels[c]}</div><input type="file" accept="image/*" capture="environment" onchange="capturarFotoCadastro('${c}', this)">`;
+    });
+    document.querySelectorAll('.locadora-opt').forEach(el=>el.className='locadora-opt');
+    ['cad-modelo','cad-placa','cad-ano','cad-cor','cad-km'].forEach(id=>document.getElementById(id).value='');
+    const infoBox = document.getElementById('info-box-solicitacao');
+    const btnSalvar = document.getElementById('btn-salvar-veiculo');
+    const titulo = document.getElementById('modal-cadastro-titulo');
+    if (isAdmin) { infoBox.style.display='none'; btnSalvar.textContent='✓ Salvar Veículo'; titulo.textContent='Novo Veículo'; }
+    else         { infoBox.style.display='block'; btnSalvar.textContent='📋 Enviar Solicitação'; titulo.textContent='Solicitar Cadastro de Veículo'; }
+    document.getElementById('modal-cadastro').classList.add('aberto');
+    document.body.style.overflow='hidden';
+  }
+
+  function fecharModalCadastro(e) { if (e.target===document.getElementById('modal-cadastro')) fecharModalCadastroDireto(); }
+  function fecharModalCadastroDireto() { document.getElementById('modal-cadastro').classList.remove('aberto'); document.body.style.overflow=''; }
+
+  function selecionarLocadora(loc) {
+    locadoraSelecionada = loc;
+    document.querySelectorAll('.locadora-opt').forEach(el=>el.className='locadora-opt');
+    document.getElementById('loc-'+loc).classList.add('locadora-opt','sel-'+loc);
+  }
+
+  function capturarFotoCadastro(chave, input) {
+    if (!input.files||!input.files[0]) return;
+    const file = input.files[0];
+    fotosCadastroBlob[chave] = file;
+    const url = URL.createObjectURL(file);
+    const card = document.getElementById('cad-card-'+chave);
+    card.classList.add('capturada');
+    card.innerHTML = `<img src="${url}" alt="${chave}"><div class="overlay" style="font-size:1.5rem;">✅</div><input type="file" accept="image/*" capture="environment" onchange="capturarFotoCadastro('${chave}',this)">`;
+  }
+
+  async function uploadFotoCadastro(chave, veiculoId) {
+    const file = fotosCadastroBlob[chave];
+    if (!file) return null;
+    const ext = file.name.split('.').pop()||'jpg';
+    const path = `veiculos/${veiculoId}/${Date.now()}_${chave}.${ext}`;
+    const {error} = await sb.storage.from('fotos-vistoria').upload(path,file,{upsert:true});
+    if (error) throw new Error(error.message);
+    const {data} = sb.storage.from('fotos-vistoria').getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+    function mostrarToast(msg, tipo='sucesso') {
+    const toast = document.getElementById('toast');
+    const cor = tipo === 'sucesso' ? '#80ff80' : '#ff8080';
+    const borda = tipo === 'sucesso' ? 'var(--green)' : 'var(--red)';
+    toast.style.borderColor = borda;
+    toast.style.color = cor;
+    document.getElementById('toast-msg').textContent = msg;
+    toast.style.display = 'block';
+    setTimeout(() => toast.style.display = 'none', 3000);
+  }
+  async function salvarVeiculo() {
+    const modelo = document.getElementById('cad-modelo').value.trim();
+    const placa  = document.getElementById('cad-placa').value.trim().toUpperCase();
+    const ano    = document.getElementById('cad-ano').value;
+    const cor    = document.getElementById('cad-cor').value.trim();
+    const km     = document.getElementById('cad-km').value;
+    if (!modelo||!placa) { alert('Preencha pelo menos Modelo e Placa.'); return; }
+
+    if (isAdmin) {
+      mostrarLoading('Salvando veículo...');
+      const {data:vData, error:vError} = await sb.from('veiculos').insert({
+        modelo, placa, ano:ano?parseInt(ano):null,
+        cor:cor||null, locadora:locadoraSelecionada,
+        km_cadastro:km?parseInt(km):null, ativo:true
+      }).select().single();
+      if (vError) { esconderLoading(); alert('Erro: '+vError.message); return; }
+      const urls = {};
+      for (const chave of ['frente','traseira','esquerda','direita','painel']) {
+        if (fotosCadastroBlob[chave]) {
+          document.getElementById('loading-txt').textContent=`Enviando foto: ${chave}...`;
+          try { urls[chave] = await uploadFotoCadastro(chave, vData.id); } catch(e) {}
+        }
+      }
+      if (Object.keys(urls).length>0) {
+        await sb.from('veiculos').update({
+          foto_frente:urls.frente||null, foto_traseira:urls.traseira||null,
+          foto_lateral_esq:urls.esquerda||null, foto_lateral_dir:urls.direita||null,
+          foto_painel:urls.painel||null
+        }).eq('id',vData.id);
+      }
+      esconderLoading(); fecharModalCadastroDireto(); await carregarFrota();
+      mostrarToast('✅ Veículo cadastrado com sucesso!');
+    } else {
+      mostrarLoading('Enviando solicitação...');
+      const dados = {modelo, placa, ano:ano||null, cor:cor||null, locadora:locadoraSelecionada, km_cadastro:km||null};
+      const {error} = await sb.from('solicitacoes').insert({
+        tipo:'cadastro_veiculo', email_solicitante:usuarioAtual.email,
+        descricao:`Solicita cadastro: ${modelo} (${placa})`,
+        dados_json:JSON.stringify(dados), status:'pendente'
+      });
+      esconderLoading();
+      if (error) { alert('Erro: '+error.message); return; }
+      fecharModalCadastroDireto();
+      mostrarToast('📋 Solicitação enviada! Um administrador irá revisar.');
+    }
+  }
+
+  // ── HISTÓRICO ──
+  async function carregarHistorico() {
+    mostrarLoading();
+    const {data:veiculos, error:ve} = await sb.from('veiculos').select('id,modelo,placa,cor').order('modelo');
+    const {data:vistorias, error:vi} = await sb.from('vistorias').select('*').order('data_registro',{ascending:true});
+    esconderLoading();
+    if (ve||vi) { alert('Erro ao carregar histórico'); return; }
+    const container = document.getElementById('historico-lista');
+    if (!veiculos.length) { container.innerHTML=`<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-txt">Nenhum veículo cadastrado</div></div>`; return; }
+    container.innerHTML = veiculos.map(v => {
+      const vistveiculo = vistorias.filter(x=>x.veiculo_id===v.id);
+      const retiradas = vistveiculo.filter(x=>x.tipo==='retirada');
+      const paresHtml = retiradas.map(ret => {
+        const dev = vistorias.find(x=>x.vistoria_retirada_id===ret.id);
+        const kmP = dev?(dev.km_atual-ret.km_atual):null;
+        const aberta = !dev;
+        return `<div class="par-card${aberta?' aberto-ret':''}">
+          <div class="par-col">
+            <div class="par-titulo">🚗 Retirada</div>
+            ${aberta?'<span class="tag-aberta">Em aberto</span>':''}
+            <div class="par-km">${Number(ret.km_atual).toLocaleString('pt-BR')} km</div>
+            <div class="par-km-label">KM na retirada</div>
+            <div class="par-info" style="margin-top:6px;">${ret.email_logado?ret.email_logado.split('@')[0]:'—'}</div>
+            <div class="par-info" style="color:var(--gray3);font-size:.73rem;">${formatarData(ret.data_registro)}</div>
+          </div>
+          <div class="par-col">
+            <div class="par-titulo">🔑 Devolução</div>
+            ${dev?`
+              <div class="par-km">${Number(dev.km_atual).toLocaleString('pt-BR')} km</div>
+              <div class="par-km-label">KM na devolução</div>
+              <div class="par-info" style="margin-top:6px;">${dev.email_logado?dev.email_logado.split('@')[0]:'—'}</div>
+              <div class="par-info" style="color:var(--gray3);font-size:.73rem;">${formatarData(dev.data_registro)}</div>
+            `:'<div class="par-info" style="color:var(--gray3);">Aguardando devolução...</div>'}
+          </div>
+          ${kmP!==null?`<div class="km-percorrido"><div class="valor">+${Number(kmP).toLocaleString('pt-BR')} km</div><div class="label">percorridos nesta viagem</div></div>`:''}
+        </div>`;
+      }).join('')||`<div style="font-size:.83rem;color:var(--gray3);padding:10px 0;">Nenhuma vistoria registrada</div>`;
+      return `<div class="historico-veiculo">
+        <div class="historico-veiculo-header" onclick="toggleHistVeiculo(${v.id})">
+          <div class="hist-modelo">${v.modelo}${v.cor?' · '+v.cor:''}</div>
+          <div class="hist-placa">${v.placa}</div>
+          <span style="color:var(--gray3);margin-left:8px;">›</span>
+        </div>
+        <div class="hist-pares" id="hist-${v.id}">${paresHtml}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function toggleHistVeiculo(id) { document.getElementById('hist-'+id).classList.toggle('aberto'); }
+  async function carregarSolicitacoes() {
+    mostrarLoading();
+    const {data,error} = await sb.from('solicitacoes').select('*').eq('status','pendente').order('criado_em',{ascending:false});
+    esconderLoading();
+    if (error) { alert('Erro: '+error.message); return; }
+    todasSolicitacoes = data;
+    atualizarBadgeSolic(data.length);
+    const container = document.getElementById('solic-lista');
+    if (!data.length) { container.innerHTML=`<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-txt">Nenhuma solicitação pendente</div></div>`; return; }
+    container.innerHTML = data.map(s => {
+      const isNovoUsuario = s.nome && s.email && !s.tipo;
+      if (isNovoUsuario) {
+        return `<div class="solic-card tipo-usuario">
+          <div class="solic-header">
+            <div>
+              <div class="solic-titulo">👤 Novo Usuário</div>
+              <div class="solic-detalhe">Nome: ${s.nome} ${s.sobrenome}</div>
+              <div class="solic-detalhe">E-mail: ${s.email} · ${formatarData(s.criado_em)}</div>
+            </div>
+            <span class="solic-tipo-badge usuario">Novo Usuário</span>
+          </div>
+          <div class="solic-acoes">
+            <button class="btn-aprovar" onclick="resolverSolicitacaoUsuario('${s.id}','aprovado')">✓ Aprovar</button>
+            <button class="btn-rejeitar" onclick="resolverSolicitacaoUsuario('${s.id}','rejeitado')">✕ Rejeitar</button>
+          </div>
+        </div>`;
+      }
+      const tipoConfig = {
+        cancelamento:      {label:'Cancelamento de Vistoria', badge:'cancelamento', emoji:'🗑️'},
+        cadastro_veiculo:  {label:'Cadastro de Veículo',      badge:'veiculo',      emoji:'🚗'},
+        cadastro_usuario:  {label:'Novo Usuário',             badge:'usuario',      emoji:'👤'},
+        retirada_bloqueada:{label:'Retirada Bloqueada',       badge:'bloqueada',    emoji:'🔒'},
+        troca_agenda:      {label:'Solicitação de Troca',     badge:'veiculo',      emoji:'🔄'},
+      };
+      const cfg = tipoConfig[s.tipo] || {label: s.tipo, badge:'usuario', emoji:'📋'};
+      const extra = s.tipo==='retirada_bloqueada' ? `<button class="btn-notificar" onclick="notificarUsuario('${s.id}')">📲 Notificar usuário anterior</button>` : '';
+      return `<div class="solic-card tipo-${s.tipo==='cadastro_veiculo'?'veiculo':s.tipo==='cadastro_usuario'?'usuario':'cancelamento'}">
+        <div class="solic-header">
+          <div>
+            <div class="solic-titulo">${cfg.emoji} ${cfg.label}</div>
+            <div class="solic-detalhe">Por: ${s.email_solicitante} · ${formatarData(s.criado_em)}</div>
+            ${s.descricao ? `<div class="solic-detalhe" style="margin-top:4px;">💬 ${s.descricao}</div>` : ''}
+          </div>
+          <span class="solic-tipo-badge ${cfg.badge}">${cfg.label}</span>
+        </div>
+        <div class="solic-acoes">
+          <button class="btn-aprovar" onclick="resolverSolicitacao('${s.id}','aprovado')">✓ Aprovar</button>
+          <button class="btn-rejeitar" onclick="resolverSolicitacao('${s.id}','rejeitado')">✕ Rejeitar</button>
+          ${extra}
+        </div>
+      </div>`;
+    }).join('');
+  }
+      async function resolverSolicitacaoUsuario(id, status) {
+      const solic = todasSolicitacoes.find(s => s.id == id);
+      if (!solic) return;
+
+      mostrarLoading(status === 'aprovado' ? 'Aprovando...' : 'Rejeitando...');
+
+      if (status === 'aprovado') {
+          if (solic.tipo === 'troca_agenda') {
+            const dados = JSON.parse(solic.dados_json);
+            const { error: trocaError } = await sb.from('agenda_reservas')
+              .update({
+                email_usuario: solic.email_solicitante,
+                status: 'reservado'
+              })
+              .eq('id', dados.reservaId);
+
+            if (trocaError) {
+              esconderLoading();
+              alert('Erro ao atualizar agenda: ' + trocaError.message);
+              return;
+            }
+
+            await sb.from('solicitacoes').update({ status: 'aprovado' }).eq('id', id);
+            esconderLoading();
+            mostrarToast('✅ Troca de agenda aprovada!');
+            await carregarSolicitacoes();
+            return;
+            }
+          const { data: authData, error: signupError } = await sb.auth.signUp({
+            email: solic.email,
+            password: solic.senha
+          });
+
+          console.log('signupError:', signupError);
+          console.log('authData.user:', authData?.user);
+
+          let userId = authData?.user?.id;
+          console.log('userId do signUp:', userId);
+
+          if (!userId) {
+            const { data: idData, error: rpcError } = await sb.rpc('get_user_id_by_email', { user_email: solic.email });
+            console.log('rpcError:', rpcError);
+            console.log('idData:', idData);
+            userId = idData;
+          }
+
+          console.log('userId final:', userId);
+
+        if (userId) {
+          const { data: userExiste } = await sb.from('usuarios')
+            .select('id').eq('email', solic.email).maybeSingle();
+
+          if (!userExiste) {
+            const { error: insertError } = await sb.from('usuarios').insert({
+              id: userId,
+              email: solic.email,
+              nome: solic.nome,
+              sobrenome: solic.sobrenome,
+              perfil: 'usuario',
+              status: 'ativo'
+            });
+            console.log('insertError:', insertError);
+          }
+        }
+      }
+
+      const { error } = await sb.from('solicitacoes').update({ status }).eq('id', id);
+      esconderLoading();
+      if (error) { alert('Erro: ' + error.message); return; }
+      await carregarSolicitacoes();
+    }
+  
+  function atualizarBadgeSolic(n) {
+    const badge = document.getElementById('badge-count-solic');
+    if (n>0) { badge.textContent=n; badge.style.display='inline'; }
+    else { badge.style.display='none'; }
+  }
+    async function resolverSolicitacao(id, status) {
+    console.log('teste123', id, status);
+    const solic = todasSolicitacoes.find(s=>s.id==id);
+    console.log('solic:', solic);
+    console.log('tipo:', solic?.tipo, '| status:', status, '| vistoria_id:', solic?.vistoria_id);
+    console.log('comparacao tipo:', solic?.tipo==='cancelamento');
+    console.log('comparacao status:', status==='aprovado');
+    if (!solic) return;
+    mostrarLoading(status==='aprovado'?'Aprovando...':'Rejeitando...');
+
+    if (status==='aprovado' && solic.tipo==='troca_agenda') {
+      const dados = JSON.parse(solic.dados_json);
+      const { error: trocaError } = await sb.from('agenda_reservas')
+        .update({ email_usuario: solic.email_solicitante, status: 'reservado' })
+        .eq('id', dados.reservaId);
+      if (trocaError) { esconderLoading(); alert('Erro ao atualizar agenda: ' + trocaError.message); return; }
+      if (agendaVeiculoId) await carregarAgenda(agendaVeiculoId);
+    }
+
+    if (status==='aprovado' && solic.tipo==='cancelamento' && solic.vistoria_id) {
+      console.log('entrou no cancelamento, vistoria_id:', solic.vistoria_id);
+      const { error: delError } = await sb.from('vistorias').delete().eq('id', solic.vistoria_id);
+      if (delError) { esconderLoading(); alert('Erro ao cancelar vistoria: ' + delError.message); return; }
+    }
+
+    if (status==='aprovado' && solic.tipo==='cadastro_veiculo' && solic.dados_json) {
+      try { const dados=JSON.parse(solic.dados_json); await sb.from('veiculos').insert({...dados,ativo:true}); } catch(e) {}
+    }
+
+    if (status==='aprovado' && solic.tipo==='cadastro_usuario') {
+      await sb.from('usuarios').update({status:'ativo'}).eq('email',solic.email_solicitante);
+    }
+
+    const {error} = await sb.from('solicitacoes').update({status}).eq('id',id);
+    esconderLoading();
+    if (error) { alert('Erro: '+error.message); return; }
+    await carregarSolicitacoes();
+  }
+    async function notificarUsuario(id) {
+      alert('Notificação registrada. O usuário anterior será avisado sobre a devolução pendente.');
+      await resolverSolicitacao(id,'aprovado');
+    }
+
+  // ── USUÁRIOS ──
+  async function carregarUsuarios() {
+    mostrarLoading();
+    const {data,error} = await sb.from('usuarios').select('*').order('nome');
+    esconderLoading();
+    if (error) { alert('Erro: '+error.message); return; }
+    todosUsuarios = data;
+    renderizarUsuarios(data);
+  }
+
+  function filtrarUsuarios(status, btn) {
+    document.querySelectorAll('#tab-usuarios .filtro-btn').forEach(b=>b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    renderizarUsuarios(status==='todos' ? todosUsuarios : todosUsuarios.filter(u=>u.status===status));
+  }
+
+  function renderizarUsuarios(usuarios) {
+    const container = document.getElementById('usuarios-lista');
+    if (!usuarios.length) { container.innerHTML=`<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-txt">Nenhum usuário encontrado</div></div>`; return; }
+    container.innerHTML = usuarios.map(u => {
+      const perfilLabel = u.perfil==='admin'?'Admin':u.status==='pendente'?'Pendente':u.status==='rejeitado'?'Rejeitado':'Básico';
+      const perfilClass = u.perfil==='admin'?'admin':u.status==='pendente'?'pendente':u.status==='rejeitado'?'rejeitado':'basico';
+      const acoes = u.status === 'ativo' ? `
+        <div style="display:flex;gap:8px;" onclick="event.stopPropagation()">
+          ${u.perfil !== 'admin'
+            ? `<button class="btn-promover" onclick="alterarPerfil('${u.email}','admin')">↑ Admin</button>`
+            : `<button class="btn-rebaixar" onclick="alterarPerfil('${u.email}','usuario')">↓ Básico</button>`}
+          <button class="btn-inativar" onclick="alterarStatus('${u.email}','inativo')">🚫 Inativar</button>
+        </div>`
+        : `<div onclick="event.stopPropagation()"><button class="btn-ativar" onclick="alterarStatus('${u.email}','ativo')">✓ Ativar</button></div>`;
+      return `<div class="usuario-row" onclick="abrirModalUsuario('${u.email}')" style="cursor:pointer;">
+        <div class="usuario-avatar">${iniciais(u.nome,u.sobrenome)}</div>
+        <div class="usuario-info">
+          <div class="usuario-nome">${u.nome} ${u.sobrenome}</div>
+          <div class="usuario-email">${u.email}</div>
+        </div>
+        <span class="usuario-perfil-badge ${perfilClass}">${perfilLabel}</span>
+        ${acoes}
+      </div>`;
+    }).join('');
+  }
+  async function alterarStatus(email, status) {
+    const txt = status === 'inativo' ? 'Inativar' : 'Ativar';
+    pedirConfirmacao(`${txt} Acesso`, `Deseja ${txt.toLowerCase()} o acesso de ${email}?`, async () => {
+      mostrarLoading();
+      const { error } = await sb.from('usuarios').update({ status }).eq('email', email);
+      esconderLoading();
+      if (error) { alert('Erro: ' + error.message); return; }
+      await carregarUsuarios();
+    });
+  }
+
+  async function alterarPerfil(email, perfil) {
+    pedirConfirmacao('Alterar Perfil', `Alterar perfil de ${email} para ${perfil}?`, async () => {
+      mostrarLoading();
+      const { error } = await sb.from('usuarios').update({ perfil }).eq('email', email);
+      esconderLoading();
+      if (error) { alert('Erro: ' + error.message); return; }
+      await carregarUsuarios();
+    });
+  }
+  function abrirLightbox(url) { document.getElementById('lightbox-img').src=url; document.getElementById('lightbox').classList.add('aberto'); }
+  function fecharLightbox() { document.getElementById('lightbox').classList.remove('aberto'); }
+
+// ── INIT ──
+    (async () => {
+      const {data:sessionData} = await sb.auth.getSession();
+      if (!sessionData.session) { window.location.href='index.html'; return; }
+      usuarioAtual = sessionData.session.user;
+
+      const {data:userData} = await sb.from('usuarios').select('perfil, nome, status').eq('email', usuarioAtual.email).single();
+
+      if (!userData) {
+        await sb.auth.signOut();
+        window.location.href='index.html?msg=pendente';
+        return;
+      }
+
+      // ← VERIFICAÇÃO DE INATIVO AQUI
+      if (userData.status === 'inativo') {
+        await sb.auth.signOut();
+        window.location.href = 'index.html?msg=inativo';
+        return;
+      }
+
+      isAdmin = userData.perfil === 'admin';
+
+      document.getElementById('topbar-user').textContent = usuarioAtual.email;
+      const badge = document.getElementById('topbar-badge');
+      badge.textContent = isAdmin ? 'Administrador' : 'Usuário Básico';
+      badge.className = 'badge-perfil ' + (isAdmin ? 'admin' : 'basico');
+
+      if (isAdmin) {
+        document.getElementById('tab-btn-solic').style.display = 'block';
+        document.getElementById('tab-btn-usuarios').style.display = 'block';
+        const {data:solics} = await sb.from('solicitacoes').select('id').eq('status','pendente');
+        if (solics && solics.length > 0) atualizarBadgeSolic(solics.length);
+      }
+
+      document.getElementById('btn-add-veiculo').textContent = isAdmin ? '+ Novo Veículo' : '+ Solicitar Cadastro';
+
+      await carregarVistorias();
+      document.getElementById('tela-central').classList.add('ativa');
+    })();
+
+    function abrirModalUsuario(email) {
+      const u = todosUsuarios.find(u => u.email === email);
+      if (!u) return;
+      document.getElementById('edit-nome').value = u.nome || '';
+      document.getElementById('edit-sobrenome').value = u.sobrenome || '';
+      document.getElementById('edit-email').value = u.email || '';
+      document.getElementById('edit-perfil').value = u.perfil || 'usuario';
+      document.getElementById('edit-email-original').value = u.email;
+      document.getElementById('modal-editar-usuario').classList.add('aberto');
+    }
+
+    function fecharModalUsuario(event) {
+      if (event && event.target !== document.getElementById('modal-editar-usuario')) return;
+      document.getElementById('modal-editar-usuario').classList.remove('aberto');
+    }
+
+    async function salvarEdicaoUsuario() {
+      const email = document.getElementById('edit-email-original').value;
+      const nome = document.getElementById('edit-nome').value.trim();
+      const sobrenome = document.getElementById('edit-sobrenome').value.trim();
+      const perfil = document.getElementById('edit-perfil').value;
+
+      if (!nome || !sobrenome) { alert('Preencha nome e sobrenome.'); return; }
+
+      mostrarLoading('Salvando...');
+      const { error } = await sb.from('usuarios').update({ nome, sobrenome, perfil }).eq('email', email);
+      esconderLoading();
+
+      if (error) { alert('Erro: ' + error.message); return; }
+      document.getElementById('modal-editar-usuario').classList.remove('aberto');
+      await carregarUsuarios();
+    }
+    let acaoPendente = null;
+
+    function pedirConfirmacao(titulo, mensagem, callback, comInput=false) {
+      document.getElementById('confirm-titulo').textContent = titulo;
+      document.getElementById('confirm-mensagem').textContent = mensagem;
+      const input = document.getElementById('confirm-input');
+      input.style.display = comInput ? 'block' : 'none';
+      input.value = '';
+      acaoPendente = callback;
+      document.getElementById('modal-confirmacao').classList.add('aberto');
+    }
+
+    function confirmarAcao() {
+      const callback = acaoPendente;
+      acaoPendente = null;
+      document.getElementById('modal-confirmacao').classList.remove('aberto');
+      if (callback) callback();
+    }
+
+    function fecharModalConfirmacao(event) {
+      if (event && event.target !== document.getElementById('modal-confirmacao')) return;
+      document.getElementById('modal-confirmacao').classList.remove('aberto');
+      acaoPendente = null;
+    }
+    function abrirModalEditarVistoria() {
+      const v = todasVistorias.find(x => x.id === vistoriaAtualId);
+      if (!v) return;
+      document.getElementById('edit-vistoria-km').value = v.km_atual || '';
+      document.getElementById('edit-vistoria-tipo').value = v.tipo || 'retirada';
+      document.getElementById('edit-vistoria-obs').value = v.observacao || '';
+      document.getElementById('edit-vistoria-motivo').value = '';
+      document.getElementById('modal-editar-vistoria').classList.add('aberto');
+    }
+
+    function fecharModalEditarVistoria(event) {
+      if (event && event.target !== document.getElementById('modal-editar-vistoria')) return;
+      document.getElementById('modal-editar-vistoria').classList.remove('aberto');
+    }
+    async function salvarEdicaoVistoria() {
+      const km = document.getElementById('edit-vistoria-km').value;
+      const tipo = document.getElementById('edit-vistoria-tipo').value;
+      const obs = document.getElementById('edit-vistoria-obs').value.trim();
+      const motivo = document.getElementById('edit-vistoria-motivo').value.trim();
+
+      if (!motivo) { alert('Informe o motivo da edição.'); return; }
+      if (!km || km <= 0) { alert('Informe o KM.'); return; }
+
+      const vAntes = todasVistorias.find(x => x.id === vistoriaAtualId);
+      console.log('vistoriaAtualId:', vistoriaAtualId);
+      console.log('vAntes:', vAntes);
+
+      mostrarLoading('Salvando...');
+      
+      const { error, data } = await sb.from('vistorias').update({
+        km_atual: parseInt(km),
+        tipo,
+        observacao: obs || null
+      }).eq('id', vistoriaAtualId);
+
+      console.log('error update:', error);
+      console.log('data update:', data);
+      if (!error) {
+        await sb.from('historico_edicoes').insert({
+          vistoria_id: vistoriaAtualId,
+          email_admin: usuarioAtual.email,
+          motivo,
+          alteracoes: {
+            km_antes: vAntes?.km_atual,
+            km_depois: parseInt(km),
+            tipo_antes: vAntes?.tipo,
+            tipo_depois: tipo,
+            obs_antes: vAntes?.observacao,
+            obs_depois: obs || null
+          }
+        });
+      }
+
+      esconderLoading();
+      if (error) { alert('Erro: ' + error.message); return; }
+      document.getElementById('modal-editar-vistoria').classList.remove('aberto');
+      fecharModalDireto();
+      mostrarToast('✅ Vistoria editada com sucesso!');
+      await carregarVistorias();
+    }
+  </script>
+    
+</body>
+</html>
